@@ -2,32 +2,32 @@
 // Dependensi:
 //   npx expo install expo-application expo-crypto expo-secure-store expo-linking
 //   npm i tweetnacl
-import * as Application from 'expo-application';
-import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
-import { Linking, Platform } from 'react-native';
-import nacl from 'tweetnacl';
+import * as Application from "expo-application";
+import * as Crypto from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
+import { Linking, Platform } from "react-native";
+import nacl from "tweetnacl";
 
 // Tempel isi PUBLIC_KEY.txt hasil `node tools/buat-kunci.js`
-const PUBLIC_KEY_B64 = 'vRZMdQ2AzJdYSZAtHqQl3QCVLvVSp0MpZHa0uGGqKV4=';
+const PUBLIC_KEY_B64 = "vRZMdQ2AzJdYSZAtHqQl3QCVLvVSp0MpZHa0uGGqKV4=";
 
 // Nomor WhatsApp penjual, format internasional tanpa + (contoh: 6281234567890)
-export const SELLER_WA = '62XXXXXXXXXXX';
+export const SELLER_WA = "6285775452609";
 
-const STORE_KEY = 'kasirhan_license_v1';
-const MSG_PREFIX = 'KASIRHAN|';
+const STORE_KEY = "kasirhan_license_v1";
+const MSG_PREFIX = "KASIRHAN|";
 
 /* ---------- helper base64 / base64url (tanpa dependensi tambahan) ---------- */
-const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function b64ToBytes(input: string): Uint8Array {
-  const s = input.replace(/-/g, '+').replace(/_/g, '/').replace(/[=\s]/g, '');
+  const s = input.replace(/-/g, "+").replace(/_/g, "/").replace(/[=\s]/g, "");
   const out: number[] = [];
   let buf = 0;
   let bits = 0;
   for (let i = 0; i < s.length; i++) {
     const v = B64.indexOf(s[i]);
-    if (v < 0) throw new Error('base64 tidak valid');
+    if (v < 0) throw new Error("base64 tidak valid");
     buf = (buf << 6) | v;
     bits += 6;
     if (bits >= 8) {
@@ -50,7 +50,7 @@ let cachedId: string | null = null;
 export async function getDeviceId(): Promise<string> {
   if (cachedId) return cachedId;
   const androidId =
-    Platform.OS === 'android' ? Application.getAndroidId() : 'non-android';
+    Platform.OS === "android" ? Application.getAndroidId() : "non-android";
   const hash = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
     `${androidId}|kasirhan`,
@@ -97,7 +97,9 @@ export async function openWhatsAppRequest(buyerName?: string): Promise<void> {
   const id = await getDeviceId();
   const text =
     `Halo, saya ingin aktivasi Kasirhan.\n` +
-    (buyerName ? `Nama: ${buyerName}\n` : '') +
+    (buyerName ? `Nama: ${buyerName}\n` : "") +
     `ID Perangkat: ${id}`;
-  await Linking.openURL(`https://wa.me/${SELLER_WA}?text=${encodeURIComponent(text)}`);
+  await Linking.openURL(
+    `https://wa.me/${SELLER_WA}?text=${encodeURIComponent(text)}`,
+  );
 }
