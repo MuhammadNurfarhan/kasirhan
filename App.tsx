@@ -6,9 +6,9 @@ import {
   Text,
   AppState,
   AppStateStatus,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/stores/authStore';
 import { useAppStore } from './src/stores/appStore';
 import { ActivationScreen } from './src/screens/ActivationScreen';
@@ -24,6 +24,14 @@ import { FaqScreen } from './src/screens/FaqScreen';
 import { Navbar } from './src/components/Navbar';
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const {
     isLicensed,
     isSetup,
@@ -92,7 +100,7 @@ export default function App() {
 
   // 4. Main App Screens
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <View style={styles.safeContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.screenContainer}>
         {currentScreen === 'cashier' && <CashierScreen />}
@@ -104,7 +112,7 @@ export default function App() {
         {currentScreen === 'faq' && <FaqScreen />}
       </View>
       <Navbar />
-    </SafeAreaView>
+    </View>
   );
 }
 

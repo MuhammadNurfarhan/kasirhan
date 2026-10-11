@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  SafeAreaView,
   Clipboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
 import { openWhatsAppRequest } from '../license';
@@ -54,7 +54,7 @@ export const ActivationScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* App Branding */}
         <View style={styles.brandBox}>

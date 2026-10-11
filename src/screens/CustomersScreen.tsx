@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../components/Header';
 import { Customer, Debt } from '../types';
 import {
@@ -23,6 +24,7 @@ import {
 import { formatRupiah, formatDateTime } from '../utils/format';
 
 export const CustomersScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
 
@@ -265,7 +267,7 @@ export const CustomersScreen: React.FC = () => {
       {/* DEBT DETAILS & REPAYMENT MODAL */}
       <Modal visible={showDebtModal} animationType="slide">
         <View style={styles.debtSafe}>
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { paddingTop: Math.max(14, insets.top + 8), backgroundColor: '#FFFFFF' }]}>
             <View>
               <Text style={styles.modalTitle}>Piutang {activeCustomer?.name}</Text>
               <Text style={styles.debtSubTitle}>
@@ -277,7 +279,7 @@ export const CustomersScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.debtBody} contentContainerStyle={styles.debtBodyContent}>
+          <ScrollView style={styles.debtBody} contentContainerStyle={[styles.debtBodyContent, { paddingBottom: Math.max(20, insets.bottom + 20) }]}>
             {targetDebt && (
               <View style={styles.payBox}>
                 <Text style={styles.payBoxTitle}>Bayar Cicilan Piutang</Text>

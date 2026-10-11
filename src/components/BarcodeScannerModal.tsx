@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BarcodeScannerModalProps {
   visible: boolean;
@@ -26,6 +27,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [torch, setTorch] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [scanned, setScanned] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (scanned || !data) return;
@@ -48,7 +50,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         {/* Top Control Bar */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(20, insets.top + 8) }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
             <Ionicons name="close" size={26} color="#FFFFFF" />
           </TouchableOpacity>
@@ -113,7 +115,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         )}
 
         {/* Manual Barcode Input Fallback */}
-        <View style={styles.manualInputContainer}>
+        <View style={[styles.manualInputContainer, { paddingBottom: Math.max(16, insets.bottom + 8) }]}>
           <Text style={styles.manualLabel}>Atau ketik barcode manual:</Text>
           <View style={styles.manualRow}>
             <TextInput

@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyUserPin, resetPinWithRecoveryCode } from '../repositories/profileRepository';
 
 interface PinModalProps {
@@ -28,6 +29,7 @@ export const PinModal: React.FC<PinModalProps> = ({
   onCancel,
   allowRecovery = true,
 }) => {
+  const insets = useSafeAreaInsets();
   const [pin, setPin] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
@@ -85,7 +87,15 @@ export const PinModal: React.FC<PinModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(20, insets.top + 8),
+            paddingBottom: Math.max(20, insets.bottom + 8),
+          },
+        ]}
+      >
         <View style={styles.card}>
           <View style={styles.header}>
             <Text style={styles.title}>{isRecovering ? 'Pemulihan PIN' : title}</Text>

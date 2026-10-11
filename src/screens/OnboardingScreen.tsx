@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  SafeAreaView,
   Alert,
   Clipboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessType, BusinessProfile } from '../types';
 import { BUSINESS_TYPE_PRESETS, getDefaultCategoriesForType } from '../utils/defaults';
@@ -115,7 +115,7 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Step Indicator */}
         <View style={styles.stepIndicator}>

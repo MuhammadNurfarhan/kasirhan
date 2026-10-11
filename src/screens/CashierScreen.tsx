@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../components/Header';
 import { useCartStore } from '../stores/cartStore';
 import { useAppStore } from '../stores/appStore';
@@ -27,6 +28,7 @@ import { ReceiptModal } from '../components/ReceiptModal';
 export const CashierScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isLandscape = width >= 700;
+  const insets = useSafeAreaInsets();
 
   const { profile } = useAppStore();
   const {
@@ -189,7 +191,7 @@ export const CashierScreen: React.FC = () => {
   const itemCount = getItemCount();
 
   /* ---------------------- Render Cart Items ---------------------- */
-  const renderCartList = () => (
+  const renderCartList = (isDrawer = false) => (
     <View style={styles.cartContainer}>
       <View style={styles.cartHeader}>
         <View>
@@ -277,7 +279,7 @@ export const CashierScreen: React.FC = () => {
       </ScrollView>
 
       {/* Cart Summary & Pay Button */}
-      <View style={styles.cartFooter}>
+      <View style={[styles.cartFooter, isDrawer && { paddingBottom: Math.max(14, insets.bottom + 12) }]}>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
           <Text style={styles.summaryVal}>{formatRupiah(subtotal)}</Text>
@@ -498,13 +500,13 @@ export const CashierScreen: React.FC = () => {
         onRequestClose={() => setShowCartDrawer(false)}
       >
         <View style={styles.drawerContainer}>
-          <View style={styles.drawerHeader}>
+          <View style={[styles.drawerHeader, { paddingTop: Math.max(14, insets.top + 8) }]}>
             <Text style={styles.drawerTitle}>Rincian Keranjang</Text>
             <TouchableOpacity onPress={() => setShowCartDrawer(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={26} color="#0F172A" />
             </TouchableOpacity>
           </View>
-          {renderCartList()}
+          {renderCartList(true)}
         </View>
       </Modal>
 

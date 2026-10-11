@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
 import { useCartStore } from '../stores/cartStore';
@@ -21,9 +22,10 @@ export const Header: React.FC<HeaderProps> = ({
   const { profile } = useAppStore();
   const { lockApp } = useAuthStore();
   const { items } = useCartStore();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(12, insets.top + 8) }]}>
       <View style={styles.left}>
         <Text style={styles.brand}>{profile.name || 'Kasirhan'}</Text>
         <Text style={styles.title}>{title}</Text>

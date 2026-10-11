@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '../stores/cartStore';
 import { useAppStore } from '../stores/appStore';
 import { Customer, Transaction } from '../types';
@@ -31,6 +32,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onSuccess,
   onSelectCustomerPress,
 }) => {
+  const insets = useSafeAreaInsets();
   const { profile } = useAppStore();
   const {
     items,
@@ -125,7 +127,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(16, insets.top + 8),
+            paddingBottom: Math.max(16, insets.bottom + 8),
+          },
+        ]}
+      >
         <View style={styles.card}>
           {/* Header */}
           <View style={styles.header}>

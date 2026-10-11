@@ -11,6 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../components/Header';
 import { Product, ProductVariant, Category, ProductUnit } from '../types';
 import {
@@ -29,6 +30,7 @@ import { formatRupiah, formatQuantity } from '../utils/format';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 
 export const ProductsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
@@ -405,7 +407,7 @@ export const ProductsScreen: React.FC = () => {
       {/* ADD / EDIT PRODUCT MODAL */}
       <Modal visible={showProductModal} animationType="slide" onRequestClose={() => setShowProductModal(false)}>
         <View style={styles.modalSafe}>
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { paddingTop: Math.max(14, insets.top + 8) }]}>
             <Text style={styles.modalTitle}>
               {editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}
             </Text>
@@ -414,7 +416,7 @@ export const ProductsScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+          <ScrollView style={styles.modalBody} contentContainerStyle={[styles.modalBodyContent, { paddingBottom: Math.max(40, insets.bottom + 20) }]}>
             <Text style={styles.inputLabel}>Nama Produk *</Text>
             <TextInput
               style={styles.input}

@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Transaction } from '../types';
 import { useAppStore } from '../stores/appStore';
 import { formatRupiah, formatDateTime, formatQuantity } from '../utils/format';
@@ -25,6 +26,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   transaction,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const { profile } = useAppStore();
 
   if (!transaction) return null;
@@ -55,7 +57,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(16, insets.top + 8),
+            paddingBottom: Math.max(16, insets.bottom + 8),
+          },
+        ]}
+      >
         <View style={styles.card}>
           {/* Header Bar */}
           <View style={styles.topBar}>

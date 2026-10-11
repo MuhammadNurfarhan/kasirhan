@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore, AppScreen } from '../stores/appStore';
 
 interface NavItem {
@@ -20,9 +21,10 @@ const NAV_ITEMS: NavItem[] = [
 
 export const Navbar: React.FC = () => {
   const { currentScreen, setScreen } = useAppStore();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(8, insets.bottom + 6) }]}>
       {NAV_ITEMS.map((item) => {
         const isActive = currentScreen === item.id;
         return (
