@@ -8,8 +8,8 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '../stores/cartStore';
@@ -252,14 +252,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {paymentMethod === 'qris' && (
               <View style={styles.methodSection}>
                 <View style={styles.qrBox}>
-                  <QRCode
-                    value={profile.qris_payload || `KASIRHAN|${total}|${Date.now()}`}
-                    size={160}
-                  />
+                  {profile.qris_image_uri ? (
+                    <View style={styles.qrisImageContainer}>
+                      <Image
+                        source={{ uri: profile.qris_image_uri }}
+                        style={styles.qrisImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.emptyQrisContainer}>
+                      <View style={styles.emptyQrisIconCircle}>
+                        <Ionicons name="qr-code-outline" size={48} color="#94A3B8" />
+                      </View>
+                      <Text style={styles.emptyQrisTitle}>Foto QRIS Belum Diunggah</Text>
+                      <Text style={styles.emptyQrisSubtitle}>
+                        Buka menu Pengaturan untuk mengunggah foto kode QRIS toko dari galeri perangkat.
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.qrTitle}>{profile.name}</Text>
                   <Text style={styles.qrNominal}>Total Tagihan: {formatRupiah(total)}</Text>
                   <Text style={styles.qrNote}>
-                    Tunjukkan kode QR kepada pembeli. Tekan "Selesaikan Transaksi" setelah pembeli selesai membayar.
+                    {profile.qris_image_uri
+                      ? 'Arahkan pembeli untuk memindai foto QRIS di atas. Tekan "Selesaikan Transaksi" setelah pembeli selesai membayar.'
+                      : 'Tunjukkan nominal kepada pembeli. Tekan "Selesaikan Transaksi" setelah pembayaran diterima.'}
                   </Text>
                 </View>
               </View>
@@ -515,6 +532,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  qrisImageContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 1,
+  },
+  qrisImage: {
+    width: 230,
+    height: 230,
+    borderRadius: 8,
+  },
+  emptyQrisContainer: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  emptyQrisIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  emptyQrisTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  emptyQrisSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
+    maxWidth: 240,
   },
   qrTitle: {
     fontSize: 15,

@@ -117,5 +117,6 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   tax_enabled: false,
   tax_percentage: 11,
   qris_payload: null,
+  qris_image_uri: null,
   table_enabled: false,
 };

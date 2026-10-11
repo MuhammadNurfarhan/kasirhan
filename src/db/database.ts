@@ -12,6 +12,11 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
 
 export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(CREATE_TABLES_SQL);
+  try {
+    await db.execAsync('ALTER TABLE business_profile ADD COLUMN qris_image_uri TEXT DEFAULT NULL;');
+  } catch {
+    // Column already exists
+  }
 }
 
 /**

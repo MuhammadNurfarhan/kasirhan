@@ -95,6 +95,7 @@ export const OnboardingScreen: React.FC = () => {
         tax_enabled: false,
         tax_percentage: 11,
         qris_payload: null,
+        qris_image_uri: null,
         table_enabled: preset?.enableTable || false,
       };
 

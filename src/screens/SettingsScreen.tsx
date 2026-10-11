@@ -9,7 +9,10 @@ import {
   Switch,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
 import { useAppStore } from '../stores/appStore';
@@ -31,7 +34,7 @@ export const SettingsScreen: React.FC = () => {
   const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>(profile.paper_size);
   const [taxEnabled, setTaxEnabled] = useState(profile.tax_enabled);
   const [taxPercentage, setTaxPercentage] = useState(profile.tax_percentage.toString());
-  const [qrisPayload, setQrisPayload] = useState(profile.qris_payload || '');
+  const [qrisImageUri, setQrisImageUri] = useState<string | null>(profile.qris_image_uri || null);
   const [tableEnabled, setTableEnabled] = useState(profile.table_enabled);
 
   // Backup / Restore State
@@ -45,6 +48,54 @@ export const SettingsScreen: React.FC = () => {
   const [showNewPinModal, setShowNewPinModal] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [newRecoveryCode, setNewRecoveryCode] = useState('');
+
+  const handlePickQrisImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert(
+          'Izin Diperlukan',
+          'Aplikasi membutuhkan izin akses galeri foto untuk memilih gambar QRIS.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.9,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const pickedAsset = result.assets[0];
+        // Salin ke direktori dokumen permanen aplikasi
+        const ext = pickedAsset.uri.split('.').pop()?.split('?')[0] || 'jpg';
+        const targetUri = `${FileSystem.documentDirectory}qris_store_${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({
+          from: pickedAsset.uri,
+          to: targetUri,
+        });
+        setQrisImageUri(targetUri);
+      }
+    } catch (e: any) {
+      Alert.alert('Gagal Memilih Foto', e?.message || 'Terjadi kesalahan saat membuka galeri foto.');
+    }
+  };
+
+  const handleRemoveQrisImage = () => {
+    Alert.alert(
+      'Hapus Foto QRIS',
+      'Apakah Anda yakin ingin menghapus foto QRIS toko?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: () => setQrisImageUri(null),
+        },
+      ]
+    );
+  };
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -60,7 +111,8 @@ export const SettingsScreen: React.FC = () => {
       paper_size: paperSize,
       tax_enabled: taxEnabled,
       tax_percentage: parseFloat(taxPercentage) || 11,
-      qris_payload: qrisPayload.trim() || null,
+      qris_payload: qrisImageUri ? 'QRIS_IMAGE' : null,
+      qris_image_uri: qrisImageUri || null,
       table_enabled: tableEnabled,
     };
     await updateProfile(updated);
@@ -225,13 +277,54 @@ export const SettingsScreen: React.FC = () => {
             <Switch value={tableEnabled} onValueChange={setTableEnabled} />
           </View>
 
-          <Text style={styles.label}>Kode / Teks QRIS Toko (Opsional):</Text>
-          <TextInput
-            style={styles.input}
-            value={qrisPayload}
-            onChangeText={setQrisPayload}
-            placeholder="Tempel payload QRIS atau link pembayaran"
-          />
+          {/* SECTION: FOTO QRIS TOKO */}
+          <Text style={styles.label}>Foto QRIS Toko (Opsional):</Text>
+          <Text style={styles.qrisDesc}>
+            Upload foto barcode QRIS toko (BCA, Mandiri, BRI, GoPay, OVO, Dana, dll) dari galeri perangkat. Foto ini akan otomatis ditampilkan saat pembeli membayar dengan metode QRIS.
+          </Text>
+
+          {qrisImageUri ? (
+            <View style={styles.qrisPreviewBox}>
+              <Image
+                source={{ uri: qrisImageUri }}
+                style={styles.qrisPreviewImage}
+                resizeMode="contain"
+              />
+              <View style={styles.qrisActionsRow}>
+                <TouchableOpacity
+                  style={styles.qrisChangeBtn}
+                  onPress={handlePickQrisImage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="images-outline" size={16} color="#1E3A8A" />
+                  <Text style={styles.qrisChangeBtnText}>Ganti Foto QRIS</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.qrisDeleteBtn}
+                  onPress={handleRemoveQrisImage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  <Text style={styles.qrisDeleteBtnText}>Hapus</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.qrisUploadBox}
+              onPress={handlePickQrisImage}
+              activeOpacity={0.7}
+            >
+              <View style={styles.qrisUploadIconWrapper}>
+                <Ionicons name="cloud-upload-outline" size={32} color="#1E3A8A" />
+              </View>
+              <Text style={styles.qrisUploadTitle}>Upload Foto QRIS Toko</Text>
+              <Text style={styles.qrisUploadSubtitle}>
+                Ketuk di sini untuk memilih gambar QRIS dari galeri perangkat
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Save Profile Button */}
@@ -694,5 +787,94 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.5,
+  },
+  qrisDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 10,
+    lineHeight: 16,
+  },
+  qrisPreviewBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 12,
+  },
+  qrisPreviewImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  qrisActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  qrisChangeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  qrisChangeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E3A8A',
+  },
+  qrisDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  qrisDeleteBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  qrisUploadBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#93C5FD',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    gap: 6,
+  },
+  qrisUploadIconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  qrisUploadTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E3A8A',
+  },
+  qrisUploadSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
   },
 });

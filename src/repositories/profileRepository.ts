@@ -16,6 +16,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile | null> {
     tax_enabled: Boolean(row.tax_enabled),
     tax_percentage: row.tax_percentage ?? 11,
     qris_payload: row.qris_payload || null,
+    qris_image_uri: row.qris_image_uri || null,
     table_enabled: Boolean(row.table_enabled),
   };
 }
@@ -25,8 +26,8 @@ export async function saveBusinessProfile(profile: BusinessProfile): Promise<voi
   await db.runAsync(
     `INSERT OR REPLACE INTO business_profile (
       id, name, business_type, address, phone, footer_note,
-      paper_size, tax_enabled, tax_percentage, qris_payload, table_enabled
-    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, table_enabled
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       profile.name,
       profile.business_type,
@@ -37,6 +38,7 @@ export async function saveBusinessProfile(profile: BusinessProfile): Promise<voi
       profile.tax_enabled ? 1 : 0,
       profile.tax_percentage,
       profile.qris_payload,
+      profile.qris_image_uri || null,
       profile.table_enabled ? 1 : 0,
     ]
   );
