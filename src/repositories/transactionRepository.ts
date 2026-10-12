@@ -1,12 +1,36 @@
-import { getDb, withTransaction } from '../db/database';
-import { Transaction, TransactionItem, CartItem } from '../types';
-import { generateId, generateInvoiceNumber } from '../utils/format';
+import { getDb, withTransaction } from "../db/database";
+import type { Transaction, TransactionItem, CartItem } from "../types";
+import { generateId } from "../utils/format";
+
+/* ------------------------------------------------------------------ *
+ * Helper tanggal. created_at disimpan sebagai ISO UTC (toISOString()),
+ * tetapi "hari ini" bagi pemilik toko adalah hari di zona waktu perangkat.
+ * Karena itu batas hari dihitung dari tanggal LOKAL lalu diubah ke ISO UTC,
+ * dan dibandingkan dengan  >= awal  AND  < awal hari berikutnya.
+ * ------------------------------------------------------------------ */
+const pad = (n: number, w = 2) => String(n).padStart(w, "0");
+export const localYmd = (d = new Date()) =>
+  `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+
+function parseDay(s: string): [number, number, number] {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) throw new Error(`Format tanggal tidak valid: ${s}`);
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+export const dayStartIso = (s: string) => {
+  const [y, m, d] = parseDay(s);
+  return new Date(y, m - 1, d).toISOString();
+};
+export const nextDayStartIso = (s: string) => {
+  const [y, m, d] = parseDay(s);
+  return new Date(y, m - 1, d + 1).toISOString();
+};
 
 export interface CreateTransactionParams {
   customerId: string | null;
   customerName: string | null;
   tableNumber: string | null;
-  paymentMethod: 'cash' | 'qris' | 'debt';
+  paymentMethod: "cash" | "qris" | "debt";
   items: CartItem[];
   subtotal: number;
   discountPercent: number;
@@ -19,21 +43,40 @@ export interface CreateTransactionParams {
   dueDate?: string | null; // for debt
 }
 
-export async function createTransaction(params: CreateTransactionParams): Promise<Transaction> {
+function assertValid(p: CreateTransactionParams) {
+  if (!p.items.length) throw new Error("Keranjang kosong");
+  if (p.items.some((i) => !(Number(i.quantity) > 0)))
+    throw new Error("Jumlah item harus lebih dari 0");
+  if (!(p.totalAmount > 0))
+    throw new Error("Total transaksi harus lebih dari 0");
+  if (p.paymentMethod === "cash" && p.paidAmount < p.totalAmount)
+    throw new Error("Uang diterima kurang dari total");
+  if (p.paymentMethod === "debt") {
+    if (!p.customerId) throw new Error("Piutang wajib memilih pelanggan");
+    if (p.paidAmount < 0 || p.paidAmount >= p.totalAmount)
+      throw new Error("Uang muka tidak valid");
+  }
+}
+
+export async function createTransaction(
+  params: CreateTransactionParams,
+): Promise<Transaction> {
+  assertValid(params);
+
   return await withTransaction(async (db) => {
     const txId = generateId();
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
 
-    // Generate unique sequential invoice number for today
-    const datePrefix = `KSH-${now.slice(0, 10).replace(/-/g, '')}%`;
+    // Nomor faktur berurutan per HARI LOKAL (bukan hari UTC)
+    const ymd = localYmd(nowDate);
     const countRow = await db.getFirstAsync<{ cnt: number }>(
-      'SELECT COUNT(*) as cnt FROM transactions WHERE invoice_number LIKE ?',
-      [datePrefix]
+      "SELECT COUNT(*) as cnt FROM transactions WHERE invoice_number LIKE ?",
+      [`KSH-${ymd}%`],
     );
-    const seq = (countRow?.cnt || 0) + 1;
-    const invoiceNumber = generateInvoiceNumber(seq);
+    const invoiceNumber = `KSH-${ymd}-${pad((countRow?.cnt || 0) + 1, 4)}`;
 
-    // 1. Insert Transaction Header
+    // 1. Header transaksi
     await db.runAsync(
       `INSERT INTO transactions (
         id, invoice_number, customer_id, customer_name, table_number,
@@ -56,19 +99,18 @@ export async function createTransaction(params: CreateTransactionParams): Promis
         params.changeAmount,
         params.note,
         now,
-      ]
+      ],
     );
 
     const insertedItems: TransactionItem[] = [];
 
-    // 2. Insert Items & Decrement Stock atomically
+    // 2. Item + kurangi stok
     for (const item of params.items) {
       const itemId = generateId();
 
-      // Fetch latest variant cost_price snapshot and stock
       const v = await db.getFirstAsync<any>(
-        'SELECT cost_price, stock FROM product_variants WHERE id = ?',
-        [item.variantId]
+        "SELECT cost_price, stock FROM product_variants WHERE id = ?",
+        [item.variantId],
       );
       const snapshotCost = v ? Number(v.cost_price) : item.costPrice;
       const currentStock = v ? Number(v.stock) : item.availableStock;
@@ -93,33 +135,34 @@ export async function createTransaction(params: CreateTransactionParams): Promis
           item.discountAmount,
           item.subtotal,
           item.isWeighted ? 1 : 0,
-        ]
+        ],
       );
 
-      // Decrement stock if track_stock is enabled
       if (item.trackStock) {
         const newStock = Math.max(0, currentStock - item.quantity);
-        await db.runAsync(
-          'UPDATE product_variants SET stock = ? WHERE id = ?',
-          [newStock, item.variantId]
-        );
+        // Yang benar-benar dikurangi (bisa lebih kecil dari qty bila stok kurang).
+        // Dicatat apa adanya agar void bisa mengembalikan persis jumlah yang sama.
+        const deducted = currentStock - newStock;
 
-        // Record stock movement
+        await db.runAsync(
+          "UPDATE product_variants SET stock = ? WHERE id = ?",
+          [newStock, item.variantId],
+        );
         await db.runAsync(
           `INSERT INTO stock_movements (
             id, variant_id, type, quantity, cost_price, previous_stock, current_stock, ref_id, note, created_at
-          ) VALUES (?, ?, 'sale', ?, ?, ?, ?, ?, 'Penjualan ' || ?, ?)`,
+          ) VALUES (?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             item.variantId,
-            -item.quantity,
+            -deducted,
             snapshotCost,
             currentStock,
             newStock,
             txId,
-            invoiceNumber,
+            `Penjualan ${invoiceNumber}`,
             now,
-          ]
+          ],
         );
       }
 
@@ -140,18 +183,18 @@ export async function createTransaction(params: CreateTransactionParams): Promis
       });
     }
 
-    // 3. If payment method is 'debt', record to debts table
-    if (params.paymentMethod === 'debt' && params.customerId) {
-      const debtId = generateId();
+    // 3. Piutang (pelanggan sudah dipastikan ada oleh assertValid)
+    if (params.paymentMethod === "debt") {
       const remaining = Math.max(0, params.totalAmount - params.paidAmount);
-      const status = remaining === 0 ? 'paid' : params.paidAmount > 0 ? 'partial' : 'unpaid';
+      const status =
+        remaining === 0 ? "paid" : params.paidAmount > 0 ? "partial" : "unpaid";
 
       await db.runAsync(
         `INSERT INTO debts (
           id, transaction_id, customer_id, total_amount, paid_amount, remaining_amount, status, due_date, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          debtId,
+          generateId(),
           txId,
           params.customerId,
           params.totalAmount,
@@ -161,7 +204,7 @@ export async function createTransaction(params: CreateTransactionParams): Promis
           params.dueDate || null,
           now,
           now,
-        ]
+        ],
       );
     }
 
@@ -172,7 +215,7 @@ export async function createTransaction(params: CreateTransactionParams): Promis
       customer_name: params.customerName,
       table_number: params.tableNumber,
       payment_method: params.paymentMethod,
-      status: 'completed',
+      status: "completed",
       subtotal: params.subtotal,
       discount_amount: params.discountAmount,
       discount_percent: params.discountPercent,
@@ -189,125 +232,143 @@ export async function createTransaction(params: CreateTransactionParams): Promis
   });
 }
 
-export async function getTransactions(options: {
-  date?: string; // YYYY-MM-DD
-  startDate?: string;
-  endDate?: string;
-  status?: 'completed' | 'void' | 'all';
-  limit?: number;
-} = {}): Promise<Transaction[]> {
+export async function getTransactions(
+  options: {
+    date?: string; // YYYY-MM-DD (hari lokal)
+    startDate?: string; // YYYY-MM-DD (hari lokal, inklusif)
+    endDate?: string; // YYYY-MM-DD (hari lokal, inklusif)
+    status?: "completed" | "void" | "all";
+    limit?: number;
+  } = {},
+): Promise<Transaction[]> {
   const db = await getDb();
-  let sql = 'SELECT * FROM transactions WHERE 1=1';
+  let sql = "SELECT * FROM transactions WHERE 1=1";
   const params: any[] = [];
 
-  if (options.date) {
-    sql += ' AND created_at LIKE ?';
-    params.push(`${options.date}%`);
-  } else if (options.startDate && options.endDate) {
-    sql += ' AND created_at >= ? AND created_at <= ?';
-    params.push(options.startDate, options.endDate + 'T23:59:59');
+  const from = options.date ?? options.startDate;
+  const to = options.date ?? options.endDate;
+  if (from) {
+    sql += " AND created_at >= ?";
+    params.push(dayStartIso(from));
+  }
+  if (to) {
+    sql += " AND created_at < ?";
+    params.push(nextDayStartIso(to));
   }
 
-  if (options.status && options.status !== 'all') {
-    sql += ' AND status = ?';
+  if (options.status && options.status !== "all") {
+    sql += " AND status = ?";
     params.push(options.status);
   }
 
-  sql += ' ORDER BY created_at DESC';
+  sql += " ORDER BY created_at DESC";
   if (options.limit) {
-    sql += ` LIMIT ${options.limit}`;
+    sql += " LIMIT ?";
+    params.push(Math.max(1, Math.floor(options.limit)));
   }
 
   return await db.getAllAsync<Transaction>(sql, params);
 }
 
-export async function getTransactionWithItems(id: string): Promise<Transaction | null> {
+export async function getTransactionWithItems(
+  id: string,
+): Promise<Transaction | null> {
   const db = await getDb();
-  const tx = await db.getFirstAsync<Transaction>('SELECT * FROM transactions WHERE id = ?', [id]);
+  const tx = await db.getFirstAsync<Transaction>(
+    "SELECT * FROM transactions WHERE id = ?",
+    [id],
+  );
   if (!tx) return null;
 
   const items = await db.getAllAsync<TransactionItem>(
-    'SELECT * FROM transaction_items WHERE transaction_id = ? ORDER BY id ASC',
-    [id]
+    "SELECT * FROM transaction_items WHERE transaction_id = ? ORDER BY rowid ASC",
+    [id],
   );
   return { ...tx, items };
 }
 
 /**
- * Void a transaction.
- * Restores product stock atomically, logs stock movement 'void',
- * marks transaction status = 'void' with reason.
+ * Void transaksi: transaksi TIDAK dihapus, hanya ditandai void + alasan.
+ * Stok dikembalikan persis sebesar yang dulu dikurangi (dibaca dari stock_movements),
+ * sehingga aman walau stok saat itu kurang dan walau pengaturan track_stock berubah kemudian.
+ * Piutang terkait ditandai 'void' (riwayat tidak dihapus).
  */
-export async function voidTransaction(transactionId: string, reason: string): Promise<void> {
+export async function voidTransaction(
+  transactionId: string,
+  reason: string,
+): Promise<void> {
+  const why = reason.trim();
+  if (why.length < 3) throw new Error("Alasan void wajib diisi");
+
   await withTransaction(async (db) => {
     const tx = await db.getFirstAsync<Transaction>(
-      'SELECT * FROM transactions WHERE id = ?',
-      [transactionId]
+      "SELECT * FROM transactions WHERE id = ?",
+      [transactionId],
     );
-    if (!tx) throw new Error('Transaksi tidak ditemukan');
-    if (tx.status === 'void') throw new Error('Transaksi sudah dibatalkan sebelumnya');
+    if (!tx) throw new Error("Transaksi tidak ditemukan");
+    if (tx.status === "void")
+      throw new Error("Transaksi sudah dibatalkan sebelumnya");
 
     const now = new Date().toISOString();
 
-    // 1. Get all items
-    const items = await db.getAllAsync<any>(
-      `SELECT ti.*, p.track_stock 
-       FROM transaction_items ti 
-       JOIN products p ON ti.product_id = p.id 
-       WHERE ti.transaction_id = ?`,
-      [transactionId]
+    const moves = await db.getAllAsync<{
+      variant_id: string;
+      quantity: number;
+      cost_price: number;
+    }>(
+      "SELECT variant_id, quantity, cost_price FROM stock_movements WHERE ref_id = ? AND type = 'sale'",
+      [transactionId],
     );
 
-    // 2. Restore stocks
-    for (const item of items) {
-      if (item.track_stock) {
-        const v = await db.getFirstAsync<any>(
-          'SELECT stock FROM product_variants WHERE id = ?',
-          [item.variant_id]
-        );
-        const prevStock = v ? Number(v.stock) : 0;
-        const restoredStock = prevStock + Number(item.quantity);
+    for (const m of moves) {
+      const give = -Number(m.quantity); // quantity penjualan bernilai negatif
+      if (!(give > 0)) continue;
 
-        await db.runAsync(
-          'UPDATE product_variants SET stock = ? WHERE id = ?',
-          [restoredStock, item.variant_id]
-        );
+      const v = await db.getFirstAsync<any>(
+        "SELECT stock FROM product_variants WHERE id = ?",
+        [m.variant_id],
+      );
+      const prevStock = v ? Number(v.stock) : 0;
+      const restoredStock = prevStock + give;
 
-        await db.runAsync(
-          `INSERT INTO stock_movements (
-            id, variant_id, type, quantity, cost_price, previous_stock, current_stock, ref_id, note, created_at
-          ) VALUES (?, ?, 'void', ?, ?, ?, ?, ?, 'Void: ' || ?, ?)`,
-          [
-            generateId(),
-            item.variant_id,
-            Number(item.quantity),
-            Number(item.cost_price),
-            prevStock,
-            restoredStock,
-            transactionId,
-            reason.trim(),
-            now,
-          ]
-        );
-      }
+      await db.runAsync("UPDATE product_variants SET stock = ? WHERE id = ?", [
+        restoredStock,
+        m.variant_id,
+      ]);
+      await db.runAsync(
+        `INSERT INTO stock_movements (
+          id, variant_id, type, quantity, cost_price, previous_stock, current_stock, ref_id, note, created_at
+        ) VALUES (?, ?, 'void', ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          generateId(),
+          m.variant_id,
+          give,
+          Number(m.cost_price),
+          prevStock,
+          restoredStock,
+          transactionId,
+          `Void: ${why}`,
+          now,
+        ],
+      );
     }
 
-    // 3. Mark transaction as void
     await db.runAsync(
-      'UPDATE transactions SET status = "void", void_at = ?, void_reason = ? WHERE id = ?',
-      [now, reason.trim(), transactionId]
+      "UPDATE transactions SET status = 'void', void_at = ?, void_reason = ? WHERE id = ?",
+      [now, why, transactionId],
     );
 
-    // 4. Cancel debt if any
+    // Jangan hapus piutang: tandai void agar riwayat tetap ada.
+    // (Pastikan kolom/constraint debts.status menerima nilai 'void'.)
     await db.runAsync(
-      'DELETE FROM debts WHERE transaction_id = ?',
-      [transactionId]
+      "UPDATE debts SET status = 'void', remaining_amount = 0, updated_at = ? WHERE transaction_id = ?",
+      [now, transactionId],
     );
   });
 }
 
 export interface ReportSummary {
-  omzet: number;
+  omzet: number; // penjualan bersih, TANPA PPN
   totalHpp: number;
   grossProfit: number;
   transactionCount: number;
@@ -317,54 +378,59 @@ export interface ReportSummary {
   debtTotal: number;
   topProducts: Array<{
     name: string;
-    totalQty: number;
+    totalQty: number; // pcs, atau kg/liter untuk produk timbang
     totalAmount: number;
   }>;
 }
 
-export async function getReportSummary(startDate: string, endDate: string): Promise<ReportSummary> {
+/** startDate/endDate: YYYY-MM-DD hari lokal, keduanya inklusif. */
+export async function getReportSummary(
+  startDate: string,
+  endDate: string,
+): Promise<ReportSummary> {
   const db = await getDb();
-  const start = startDate.includes('T') ? startDate : `${startDate}T00:00:00`;
-  const end = endDate.includes('T') ? endDate : `${endDate}T23:59:59`;
+  const from = dayStartIso(startDate);
+  const to = nextDayStartIso(endDate);
+
+  // PPN bukan pendapatan toko; hitung omzet dan laba tanpa PPN
+  const net = "(total_amount - COALESCE(tax_amount, 0))";
 
   const aggRow = await db.getFirstAsync<any>(
-    `SELECT 
+    `SELECT
       COUNT(*) as tx_count,
-      COALESCE(SUM(total_amount), 0) as omzet,
-      COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END), 0) as cash_total,
-      COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN total_amount ELSE 0 END), 0) as qris_total,
-      COALESCE(SUM(CASE WHEN payment_method = 'debt' THEN total_amount ELSE 0 END), 0) as debt_total
-     FROM transactions 
-     WHERE status = 'completed' AND created_at >= ? AND created_at <= ?`,
-    [start, end]
+      COALESCE(SUM(${net}), 0) as omzet,
+      COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN ${net} ELSE 0 END), 0) as cash_total,
+      COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN ${net} ELSE 0 END), 0) as qris_total,
+      COALESCE(SUM(CASE WHEN payment_method = 'debt' THEN ${net} ELSE 0 END), 0) as debt_total
+     FROM transactions
+     WHERE status = 'completed' AND created_at >= ? AND created_at < ?`,
+    [from, to],
   );
 
+  // "/ 1000.0": tanpa .0 SQLite membagi bilangan bulat dan membuang pecahan
   const hppRow = await db.getFirstAsync<any>(
-    `SELECT 
-      COALESCE(SUM(
-        CASE 
-          WHEN ti.is_weighted = 1 THEN (ti.cost_price * ti.quantity) / 1000
-          ELSE ti.cost_price * ti.quantity
-        END
+    `SELECT COALESCE(SUM(
+        CASE WHEN ti.is_weighted = 1 THEN (ti.cost_price * ti.quantity) / 1000.0
+             ELSE ti.cost_price * ti.quantity END
       ), 0) as total_hpp
      FROM transaction_items ti
      JOIN transactions t ON ti.transaction_id = t.id
-     WHERE t.status = 'completed' AND t.created_at >= ? AND t.created_at <= ?`,
-    [start, end]
+     WHERE t.status = 'completed' AND t.created_at >= ? AND t.created_at < ?`,
+    [from, to],
   );
 
   const topRows = await db.getAllAsync<any>(
-    `SELECT 
-      ti.product_name as name,
-      SUM(CASE WHEN ti.is_weighted = 1 THEN ti.quantity / 1000 ELSE ti.quantity END) as totalQty,
+    `SELECT
+      MAX(ti.product_name) as name,
+      SUM(CASE WHEN ti.is_weighted = 1 THEN ti.quantity / 1000.0 ELSE ti.quantity END) as totalQty,
       SUM(ti.subtotal) as totalAmount
      FROM transaction_items ti
      JOIN transactions t ON ti.transaction_id = t.id
-     WHERE t.status = 'completed' AND t.created_at >= ? AND t.created_at <= ?
-     GROUP BY ti.product_name
+     WHERE t.status = 'completed' AND t.created_at >= ? AND t.created_at < ?
+     GROUP BY ti.product_id
      ORDER BY totalAmount DESC
      LIMIT 10`,
-    [start, end]
+    [from, to],
   );
 
   const omzet = Number(aggRow?.omzet || 0);
@@ -382,7 +448,7 @@ export async function getReportSummary(startDate: string, endDate: string): Prom
     debtTotal: Number(aggRow?.debt_total || 0),
     topProducts: topRows.map((r) => ({
       name: r.name,
-      totalQty: Math.round(Number(r.totalQty)),
+      totalQty: Math.round(Number(r.totalQty) * 1000) / 1000, // 3 desimal, jangan dibulatkan ke bilangan bulat
       totalAmount: Number(r.totalAmount),
     })),
   };
