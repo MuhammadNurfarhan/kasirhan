@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,6 +62,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const tenderedNumber = parseFloat(cashTendered.replace(/\./g, '')) || 0;
   const changeAmount = Math.max(0, tenderedNumber - total);
+
+  const { height } = useWindowDimensions();
+  const bodyMaxHeight = height - insets.top - insets.bottom - 32 - 140; // padding overlay + header + footer
+
 
   const handleSelectQuickCash = (amount: number) => {
     setCashTendered(amount.toString());
@@ -145,7 +150,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+          <ScrollView style={[styles.body, { maxHeight: bodyMaxHeight }]} contentContainerStyle={styles.bodyContent}>
             {/* Total Summary Header */}
             <View style={styles.totalBox}>
               <Text style={styles.totalLabel}>TOTAL PEMBAYARAN</Text>
@@ -357,10 +362,9 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 480,
-    maxHeight: '92%',
+    maxHeight: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    display: 'flex',
     overflow: 'hidden',
   },
   header: {
@@ -381,7 +385,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   body: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   bodyContent: {
     padding: 20,
