@@ -14,7 +14,7 @@ export const QuickCashButtons: React.FC<QuickCashButtonsProps> = ({
   // Generate smart denominations based on totalAmount
   const denominations: number[] = [];
 
-  const baseNotes = [10000, 20000, 50000, 100000];
+  const baseNotes = [5000, 10000, 20000, 50000, 100000];
   for (const note of baseNotes) {
     if (note >= totalAmount) {
       denominations.push(note);
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   btn: {
-    flex: 1,
+    // flex: 1,
     minWidth: 100,
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
