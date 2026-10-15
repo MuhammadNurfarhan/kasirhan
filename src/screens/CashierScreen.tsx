@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   Modal,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -441,6 +442,10 @@ export const CashierScreen: React.FC = () => {
                       )}
                     </View>
 
+                    {prod.image_uri && (
+                      <Image source={{ uri: prod.image_uri }} style={styles.cashierProdImage} resizeMode="cover" />
+                    )}
+
                     <Text style={styles.productCardName} numberOfLines={2}>
                       {prod.name}
                     </Text>
@@ -846,6 +851,12 @@ const styles = StyleSheet.create({
   },
   productLowStock: {
     color: '#EF4444',
+  },
+  cashierProdImage: {
+    width: '100%',
+    height: 64,
+    borderRadius: 8,
+    marginVertical: 4,
   },
   productCardName: {
     fontSize: 13,

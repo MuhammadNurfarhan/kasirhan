@@ -9,7 +9,10 @@ import {
   Modal,
   Alert,
   Switch,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../components/Header';
@@ -45,6 +48,7 @@ export const ProductsScreen: React.FC = () => {
   // Editing Product State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [name, setName] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [unit, setUnit] = useState<ProductUnit>('pcs');
   const [isWeighted, setIsWeighted] = useState(false);
@@ -88,9 +92,46 @@ export const ProductsScreen: React.FC = () => {
     }
   };
 
+  const handlePickImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert(
+          'Izin Diperlukan',
+          'Aplikasi membutuhkan izin akses galeri foto untuk memilih gambar produk.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const pickedAsset = result.assets[0];
+        const ext = pickedAsset.uri.split('.').pop()?.split('?')[0] || 'jpg';
+        const targetUri = `${FileSystem.documentDirectory}product_${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({
+          from: pickedAsset.uri,
+          to: targetUri,
+        });
+        setImageUri(targetUri);
+      }
+    } catch (e: any) {
+      Alert.alert('Gagal Memilih Foto', e?.message || 'Terjadi kesalahan saat membuka galeri foto.');
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageUri(null);
+  };
+
   const handleOpenCreateProduct = () => {
     setEditingProduct(null);
     setName('');
+    setImageUri(null);
     setCategoryId(categories[0]?.id || null);
     setUnit('pcs');
     setIsWeighted(false);
@@ -108,6 +149,7 @@ export const ProductsScreen: React.FC = () => {
   const handleOpenEditProduct = (prod: Product) => {
     setEditingProduct(prod);
     setName(prod.name);
+    setImageUri(prod.image_uri || null);
     setCategoryId(prod.category_id);
     setUnit(prod.unit);
     setIsWeighted(prod.is_weighted);
@@ -176,6 +218,7 @@ export const ProductsScreen: React.FC = () => {
           is_weighted: isWeighted,
           track_stock: trackStock,
           low_stock_threshold: parseInt(lowStockThreshold, 10) || 5,
+          image_uri: imageUri,
           variants: variantsData,
         });
         Alert.alert('Sukses', 'Produk berhasil diperbarui.');
@@ -187,6 +230,7 @@ export const ProductsScreen: React.FC = () => {
           is_weighted: isWeighted,
           track_stock: trackStock,
           low_stock_threshold: parseInt(lowStockThreshold, 10) || 5,
+          image_uri: imageUri,
           variants: variantsData,
         });
         Alert.alert('Sukses', 'Produk berhasil ditambahkan.');
@@ -333,6 +377,14 @@ export const ProductsScreen: React.FC = () => {
             return (
               <View key={prod.id} style={styles.prodCard}>
                 <View style={styles.prodMain}>
+                  {prod.image_uri ? (
+                    <Image source={{ uri: prod.image_uri }} style={styles.prodThumbImage} />
+                  ) : (
+                    <View style={styles.prodThumbPlaceholder}>
+                      <Ionicons name="image-outline" size={24} color="#94A3B8" />
+                    </View>
+                  )}
+
                   <View style={styles.prodInfo}>
                     <Text style={styles.prodName}>{prod.name}</Text>
                     <View style={styles.prodMetaRow}>
@@ -417,6 +469,34 @@ export const ProductsScreen: React.FC = () => {
           </View>
 
           <ScrollView style={styles.modalBody} contentContainerStyle={[styles.modalBodyContent, { paddingBottom: Math.max(40, insets.bottom + 20) }]}>
+            {/* Foto Produk (Opsional) */}
+            <Text style={styles.inputLabel}>Foto Produk (Opsional)</Text>
+            <View style={styles.imagePickerSection}>
+              {imageUri ? (
+                <View style={styles.previewImageContainer}>
+                  <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+                  <View style={styles.imageActionButtons}>
+                    <TouchableOpacity style={styles.changeImageBtn} onPress={handlePickImage} activeOpacity={0.8}>
+                      <Ionicons name="camera-reverse" size={16} color="#FFFFFF" />
+                      <Text style={styles.changeImageBtnText}>Ganti</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.removeImageBtn} onPress={handleRemoveImage} activeOpacity={0.8}>
+                      <Ionicons name="trash" size={16} color="#FFFFFF" />
+                      <Text style={styles.removeImageBtnText}>Hapus</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.uploadPlaceholder} onPress={handlePickImage} activeOpacity={0.7}>
+                  <View style={styles.uploadIconCircle}>
+                    <Ionicons name="camera-outline" size={26} color="#1E3A8A" />
+                  </View>
+                  <Text style={styles.uploadPlaceholderText}>+ Pilih Foto dari Galeri</Text>
+                  <Text style={styles.uploadPlaceholderSub}>Format JPG/PNG, ukuran fleksibel</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <Text style={styles.inputLabel}>Nama Produk *</Text>
             <TextInput
               style={styles.input}
@@ -1069,5 +1149,100 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1E293B',
+  },
+  prodThumbImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  prodThumbPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  imagePickerSection: {
+    marginBottom: 14,
+  },
+  uploadPlaceholder: {
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+  },
+  uploadIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#DBEAFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  uploadPlaceholderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E3A8A',
+  },
+  uploadPlaceholderSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  previewImageContainer: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  previewImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  imageActionButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  changeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1E3A8A',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  changeImageBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  removeImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  removeImageBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

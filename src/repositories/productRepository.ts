@@ -277,7 +277,7 @@ export async function updateProduct(
       await db.runAsync(
         `UPDATE products SET 
           name = ?, category_id = ?, unit = ?, is_weighted = ?, 
-          track_stock = ?, low_stock_threshold = ?, updated_at = ?
+          track_stock = ?, low_stock_threshold = ?, image_uri = ?, updated_at = ?
          WHERE id = ?`,
         [
           input.name.trim(),
@@ -286,6 +286,7 @@ export async function updateProduct(
           input.is_weighted ? 1 : 0,
           input.track_stock ? 1 : 0,
           input.low_stock_threshold ?? 5,
+          input.image_uri !== undefined ? input.image_uri : null,
           now,
           productId,
         ]
