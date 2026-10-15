@@ -49,10 +49,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     clearCart,
   } = useCartStore();
 
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'debt'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [cashTendered, setCashTendered] = useState<string>('');
-  const [debtDownPayment, setDebtDownPayment] = useState<string>('0');
-  const [dueDate, setDueDate] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const subtotal = getSubtotal();
@@ -85,23 +83,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    if (paymentMethod === 'debt' && !customer) {
-      Alert.alert(
-        'Pilih Pelanggan',
-        'Pembayaran kasbon / piutang wajib memilih pelanggan yang terdaftar.'
-      );
-      return;
-    }
-
     setIsProcessing(true);
     try {
-      const dp = parseFloat(debtDownPayment.replace(/\./g, '')) || 0;
-      const paid =
-        paymentMethod === 'cash'
-          ? tenderedNumber
-          : paymentMethod === 'qris'
-          ? total
-          : dp;
+      const paid = paymentMethod === 'cash' ? tenderedNumber : total;
 
       const tx = await createTransaction({
         customerId: customer?.id || null,
@@ -117,7 +101,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         paidAmount: paid,
         changeAmount: paymentMethod === 'cash' ? changeAmount : 0,
         note,
-        dueDate: paymentMethod === 'debt' ? dueDate || null : null,
       });
 
       clearCart();
@@ -194,17 +177,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {/* Payment Method Selector */}
             <Text style={styles.sectionLabel}>PILIH METODE PEMBAYARAN:</Text>
             <View style={styles.methodsRow}>
-              {(['cash', 'qris', 'debt'] as const).map((method) => {
+              {(['cash', 'qris'] as const).map((method) => {
                 const isActive = paymentMethod === method;
                 const labels = {
                   cash: 'Tunai',
                   qris: 'QRIS',
-                  debt: 'Piutang / Kasbon',
                 };
                 const icons: Record<string, any> = {
                   cash: 'cash-outline',
                   qris: 'qr-code-outline',
-                  debt: 'newspaper-outline',
                 };
 
                 return (
@@ -284,49 +265,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       : 'Tunjukkan nominal kepada pembeli. Tekan "Selesaikan Transaksi" setelah pembayaran diterima.'}
                   </Text>
                 </View>
-              </View>
-            )}
-
-            {/* TAB 3: PIUTANG / KASBON */}
-            {paymentMethod === 'debt' && (
-              <View style={styles.methodSection}>
-                <View style={styles.debtAlert}>
-                  <Ionicons name="information-circle-outline" size={20} color="#D97706" />
-                  <Text style={styles.debtAlertText}>
-                    Pembayaran dicatat sebagai piutang pelanggan dan dapat dicicil kemudian.
-                  </Text>
-                </View>
-
-                {!customer && (
-                  <TouchableOpacity
-                    style={styles.selectCustomerPrompt}
-                    onPress={onSelectCustomerPress}
-                  >
-                    <Ionicons name="person-add" size={20} color="#1E3A8A" />
-                    <Text style={styles.selectCustomerPromptText}>
-                      Klik di sini untuk memilih nama pelanggan
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <Text style={styles.inputLabel}>Uang Muka / Bayar Awal (Opsional):</Text>
-                <TextInput
-                  style={styles.cashInput}
-                  placeholder="Rp 0"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numeric"
-                  value={debtDownPayment}
-                  onChangeText={setDebtDownPayment}
-                />
-
-                <Text style={styles.inputLabel}>Jatuh Tempo (Opsional):</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Contoh: 30 Hari / 25 November 2026"
-                  placeholderTextColor="#94A3B8"
-                  value={dueDate}
-                  onChangeText={setDueDate}
-                />
               </View>
             )}
           </ScrollView>
@@ -598,38 +536,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 16,
-  },
-  debtAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF3C7',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  debtAlertText: {
-    flex: 1,
-    fontSize: 11,
-    color: '#92400E',
-    lineHeight: 16,
-  },
-  selectCustomerPrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: '#3B82F6',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 8,
-  },
-  selectCustomerPromptText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E3A8A',
   },
   footer: {
     padding: 16,

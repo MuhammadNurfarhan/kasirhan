@@ -30,7 +30,7 @@ export interface CreateTransactionParams {
   customerId: string | null;
   customerName: string | null;
   tableNumber: string | null;
-  paymentMethod: "cash" | "qris" | "debt";
+  paymentMethod: "cash" | "qris";
   items: CartItem[];
   subtotal: number;
   discountPercent: number;
@@ -40,7 +40,6 @@ export interface CreateTransactionParams {
   paidAmount: number;
   changeAmount: number;
   note: string | null;
-  dueDate?: string | null; // for debt
 }
 
 function assertValid(p: CreateTransactionParams) {
@@ -51,11 +50,6 @@ function assertValid(p: CreateTransactionParams) {
     throw new Error("Total transaksi harus lebih dari 0");
   if (p.paymentMethod === "cash" && p.paidAmount < p.totalAmount)
     throw new Error("Uang diterima kurang dari total");
-  if (p.paymentMethod === "debt") {
-    if (!p.customerId) throw new Error("Piutang wajib memilih pelanggan");
-    if (p.paidAmount < 0 || p.paidAmount >= p.totalAmount)
-      throw new Error("Uang muka tidak valid");
-  }
 }
 
 export async function createTransaction(
@@ -181,31 +175,6 @@ export async function createTransaction(
         subtotal: item.subtotal,
         is_weighted: item.isWeighted,
       });
-    }
-
-    // 3. Piutang (pelanggan sudah dipastikan ada oleh assertValid)
-    if (params.paymentMethod === "debt") {
-      const remaining = Math.max(0, params.totalAmount - params.paidAmount);
-      const status =
-        remaining === 0 ? "paid" : params.paidAmount > 0 ? "partial" : "unpaid";
-
-      await db.runAsync(
-        `INSERT INTO debts (
-          id, transaction_id, customer_id, total_amount, paid_amount, remaining_amount, status, due_date, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          generateId(),
-          txId,
-          params.customerId,
-          params.totalAmount,
-          params.paidAmount,
-          remaining,
-          status,
-          params.dueDate || null,
-          now,
-          now,
-        ],
-      );
     }
 
     return {
@@ -375,7 +344,6 @@ export interface ReportSummary {
   avgTransaction: number;
   cashTotal: number;
   qrisTotal: number;
-  debtTotal: number;
   topProducts: Array<{
     name: string;
     totalQty: number; // pcs, atau kg/liter untuk produk timbang
@@ -400,8 +368,7 @@ export async function getReportSummary(
       COUNT(*) as tx_count,
       COALESCE(SUM(${net}), 0) as omzet,
       COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN ${net} ELSE 0 END), 0) as cash_total,
-      COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN ${net} ELSE 0 END), 0) as qris_total,
-      COALESCE(SUM(CASE WHEN payment_method = 'debt' THEN ${net} ELSE 0 END), 0) as debt_total
+      COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN ${net} ELSE 0 END), 0) as qris_total
      FROM transactions
      WHERE status = 'completed' AND created_at >= ? AND created_at < ?`,
     [from, to],
@@ -445,7 +412,6 @@ export async function getReportSummary(
     avgTransaction: txCount > 0 ? Math.round(omzet / txCount) : 0,
     cashTotal: Number(aggRow?.cash_total || 0),
     qrisTotal: Number(aggRow?.qris_total || 0),
-    debtTotal: Number(aggRow?.debt_total || 0),
     topProducts: topRows.map((r) => ({
       name: r.name,
       totalQty: Math.round(Number(r.totalQty) * 1000) / 1000, // 3 desimal, jangan dibulatkan ke bilangan bulat

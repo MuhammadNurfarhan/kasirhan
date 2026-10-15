@@ -75,7 +75,6 @@ export interface Customer {
   name: string;
   phone: string | null;
   address: string | null;
-  total_debt?: number;
   created_at: string;
 }
 
@@ -101,7 +100,7 @@ export interface Transaction {
   customer_id: string | null;
   customer_name: string | null;
   table_number: string | null;
-  payment_method: 'cash' | 'qris' | 'debt';
+  payment_method: 'cash' | 'qris';
   status: 'completed' | 'void';
   subtotal: number;
   discount_amount: number;
@@ -115,28 +114,6 @@ export interface Transaction {
   void_at: string | null;
   void_reason: string | null;
   items?: TransactionItem[];
-}
-
-export interface Debt {
-  id: string;
-  transaction_id: string;
-  customer_id: string;
-  customer_name?: string;
-  total_amount: number;
-  paid_amount: number;
-  remaining_amount: number;
-  status: 'unpaid' | 'partial' | 'paid';
-  due_date: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DebtPayment {
-  id: string;
-  debt_id: string;
-  amount: number;
-  note: string | null;
-  created_at: string;
 }
 
 export interface BusinessProfile {

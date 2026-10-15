@@ -160,9 +160,7 @@ export const HistoryScreen: React.FC = () => {
                         styles.methodBadge,
                         tx.payment_method === 'cash'
                           ? styles.cashBadge
-                          : tx.payment_method === 'qris'
-                          ? styles.qrisBadge
-                          : styles.debtBadge,
+                          : styles.qrisBadge,
                       ]}
                     >
                       <Text style={styles.methodBadgeText}>

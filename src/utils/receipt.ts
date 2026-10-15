@@ -148,12 +148,6 @@ export function generateReceiptHtml(tx: Transaction, profile: BusinessProfile): 
                 <td style="text-align: right;">${formatRupiah(tx.change_amount)}</td>
               </tr>
             ` : ''}
-            ${tx.payment_method === 'debt' ? `
-              <tr>
-                <td style="color: #d97706; font-weight: bold;">Sisa Piutang</td>
-                <td style="text-align: right; color: #d97706; font-weight: bold;">${formatRupiah(Math.max(0, tx.total_amount - tx.paid_amount))}</td>
-              </tr>
-            ` : ''}
           </table>
 
           <div class="footer">

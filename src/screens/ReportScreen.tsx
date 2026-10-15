@@ -24,7 +24,6 @@ export const ReportScreen: React.FC = () => {
     avgTransaction: 0,
     cashTotal: 0,
     qrisTotal: 0,
-    debtTotal: 0,
     topProducts: [],
   });
   const [isExporting, setIsExporting] = useState(false);
@@ -156,14 +155,6 @@ export const ReportScreen: React.FC = () => {
                 <Text style={styles.payName}>QRIS</Text>
               </View>
               <Text style={styles.payAmount}>{formatRupiah(summary.qrisTotal)}</Text>
-            </View>
-
-            <View style={styles.payRow}>
-              <View style={styles.payNameRow}>
-                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
-                <Text style={styles.payName}>Piutang / Kasbon</Text>
-              </View>
-              <Text style={styles.payAmount}>{formatRupiah(summary.debtTotal)}</Text>
             </View>
           </View>
         </View>
