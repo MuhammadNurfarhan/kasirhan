@@ -40,7 +40,9 @@ export const HistoryScreen: React.FC = () => {
   }, [filterDate, filterStatus]);
 
   const loadTransactions = async () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const _now = new Date();
+    const _pad = (n: number) => String(n).padStart(2, '0');
+    const todayStr = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.getDate())}`;
     let dateArg: string | undefined = undefined;
 
     if (filterDate === 'today') {
