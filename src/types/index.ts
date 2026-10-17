@@ -129,6 +129,7 @@ export interface BusinessProfile {
   qris_image_uri: string | null;
   logo_image_uri: string | null;
   table_enabled: boolean;
+  auto_print_enabled: boolean;
 }
 
 export interface CartItem {

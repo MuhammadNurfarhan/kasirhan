@@ -19,6 +19,7 @@ export async function getBusinessProfile(): Promise<BusinessProfile | null> {
     qris_image_uri: row.qris_image_uri || null,
     logo_image_uri: row.logo_image_uri || null,
     table_enabled: Boolean(row.table_enabled),
+    auto_print_enabled: Boolean(row.auto_print_enabled),
   };
 }
 
@@ -27,8 +28,8 @@ export async function saveBusinessProfile(profile: BusinessProfile): Promise<voi
   await db.runAsync(
     `INSERT OR REPLACE INTO business_profile (
       id, name, business_type, address, phone, footer_note,
-      paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, logo_image_uri, table_enabled
-    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, logo_image_uri, table_enabled, auto_print_enabled
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       profile.name,
       profile.business_type,
@@ -42,6 +43,7 @@ export async function saveBusinessProfile(profile: BusinessProfile): Promise<voi
       profile.qris_image_uri || null,
       profile.logo_image_uri || null,
       profile.table_enabled ? 1 : 0,
+      profile.auto_print_enabled ? 1 : 0,
     ]
   );
 }

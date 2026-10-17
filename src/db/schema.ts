@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS business_profile (
   qris_payload TEXT DEFAULT NULL,
   qris_image_uri TEXT DEFAULT NULL,
   logo_image_uri TEXT DEFAULT NULL,
-  table_enabled INTEGER DEFAULT 0
+  table_enabled INTEGER DEFAULT 0,
+  auto_print_enabled INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS auth_security (

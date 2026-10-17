@@ -344,11 +344,11 @@ export async function restoreBackupFromJson(jsonString: string): Promise<boolean
       const bp = data.businessProfile;
       await db.runAsync(
         `INSERT OR REPLACE INTO business_profile (
-          id, name, business_type, address, phone, footer_note, paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, logo_image_uri, table_enabled
-        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, name, business_type, address, phone, footer_note, paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, logo_image_uri, table_enabled, auto_print_enabled
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           bp.name, bp.business_type, bp.address, bp.phone, bp.footer_note,
-          bp.paper_size, bp.tax_enabled, bp.tax_percentage, bp.qris_payload, bp.qris_image_uri || null, bp.logo_image_uri || null, bp.table_enabled
+          bp.paper_size, bp.tax_enabled, bp.tax_percentage, bp.qris_payload, bp.qris_image_uri || null, bp.logo_image_uri || null, bp.table_enabled, bp.auto_print_enabled ? 1 : 0
         ]
       );
     }

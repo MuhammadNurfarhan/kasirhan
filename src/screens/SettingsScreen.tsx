@@ -34,6 +34,7 @@ export const SettingsScreen: React.FC = () => {
   const [qrisImageUri, setQrisImageUri] = useState<string | null>(profile.qris_image_uri || null);
   const [logoImageUri, setLogoImageUri] = useState<string | null>(profile.logo_image_uri || null);
   const [tableEnabled, setTableEnabled] = useState(profile.table_enabled);
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(profile.auto_print_enabled);
 
   // Backup / Restore State
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -155,6 +156,7 @@ export const SettingsScreen: React.FC = () => {
       qris_image_uri: qrisImageUri || null,
       logo_image_uri: logoImageUri || null,
       table_enabled: tableEnabled,
+      auto_print_enabled: autoPrintEnabled,
     };
     await updateProfile(updated);
     Alert.alert('Sukses', 'Pengaturan usaha berhasil disimpan.');
@@ -340,6 +342,16 @@ export const SettingsScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          <View style={[styles.switchRow, { marginTop: 14 }]}>
+            <View style={styles.switchInfo}>
+              <Text style={styles.switchTitle}>Cetak Struk Otomatis</Text>
+              <Text style={styles.switchSub}>
+                Otomatis mengirim struk ke printer thermal Bluetooth setiap kali transaksi berhasil
+              </Text>
+            </View>
+            <Switch value={autoPrintEnabled} onValueChange={setAutoPrintEnabled} />
           </View>
         </View>
 

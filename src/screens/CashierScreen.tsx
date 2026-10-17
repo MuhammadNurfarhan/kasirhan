@@ -25,6 +25,7 @@ import { formatRupiah, formatQuantity, parseQuantityInput } from '../utils/forma
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { CheckoutModal } from './CheckoutModal';
 import { ReceiptModal } from '../components/ReceiptModal';
+import { printReceiptBluetooth, getDefaultPrinter } from '../utils/bluetoothPrinter';
 
 export const CashierScreen: React.FC = () => {
   const { width } = useWindowDimensions();
@@ -736,9 +737,21 @@ export const CashierScreen: React.FC = () => {
       <CheckoutModal
         visible={showCheckout}
         onClose={() => setShowCheckout(false)}
-        onSuccess={(tx) => {
+        onSuccess={async (tx) => {
           setLastTransaction(tx);
           setShowReceipt(true);
+
+          // Cetak struk otomatis jika fitur diaktifkan
+          if (profile.auto_print_enabled) {
+            try {
+              const defaultAddr = await getDefaultPrinter();
+              if (defaultAddr) {
+                await printReceiptBluetooth(tx, profile, defaultAddr);
+              }
+            } catch (err: any) {
+              console.warn('Gagal cetak otomatis:', err?.message);
+            }
+          }
         }}
         onSelectCustomerPress={handleOpenCustomerSelect}
       />

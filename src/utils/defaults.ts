@@ -120,4 +120,5 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   qris_image_uri: null,
   logo_image_uri: null,
   table_enabled: false,
+  auto_print_enabled: false,
 };

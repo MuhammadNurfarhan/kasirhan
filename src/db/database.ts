@@ -22,6 +22,11 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
   } catch {
     // Column already exists
   }
+  try {
+    await db.execAsync('ALTER TABLE business_profile ADD COLUMN auto_print_enabled INTEGER DEFAULT 0;');
+  } catch {
+    // Column already exists
+  }
 }
 
 /**

@@ -60,6 +60,7 @@ export const OnboardingScreen: React.FC = () => {
         qris_image_uri: null,
         logo_image_uri: null,
         table_enabled: preset?.enableTable || false,
+        auto_print_enabled: false,
       };
 
       await saveBusinessProfile(profile);
