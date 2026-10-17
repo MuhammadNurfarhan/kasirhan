@@ -18,9 +18,6 @@ import { Header } from '../components/Header';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
 import { createBackup, restoreBackupFromJson } from '../utils/backup';
-import { PinModal } from '../components/PinModal';
-import { setupSecurity } from '../repositories/profileRepository';
-import { generateRecoveryCode } from '../utils/security';
 
 export const SettingsScreen: React.FC = () => {
   const { profile, updateProfile, setScreen } = useAppStore();
@@ -42,12 +39,6 @@ export const SettingsScreen: React.FC = () => {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreJson, setRestoreJson] = useState('');
   const [isRestoring, setIsRestoring] = useState(false);
-
-  // Change PIN State
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [showNewPinModal, setShowNewPinModal] = useState(false);
-  const [newPin, setNewPin] = useState('');
-  const [newRecoveryCode, setNewRecoveryCode] = useState('');
 
   const handlePickQrisImage = async () => {
     try {
@@ -163,23 +154,6 @@ export const SettingsScreen: React.FC = () => {
     );
   };
 
-  const handlePinAuthSuccess = () => {
-    setShowPinModal(false);
-    const code = generateRecoveryCode();
-    setNewRecoveryCode(code);
-    setShowNewPinModal(true);
-  };
-
-  const handleSaveNewPin = async () => {
-    if (newPin.length < 4 || newPin.length > 6) {
-      Alert.alert('Peringatan', 'PIN baru harus 4-6 angka.');
-      return;
-    }
-    await setupSecurity(newPin, newRecoveryCode);
-    setShowNewPinModal(false);
-    setNewPin('');
-    Alert.alert('Sukses', 'PIN dan Kode Pemulihan baru berhasil disimpan.');
-  };
 
   return (
     <View style={styles.container}>
@@ -333,19 +307,6 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.saveBtnText}>Simpan Pengaturan</Text>
         </TouchableOpacity>
 
-        {/* SECTION 4: KEAMANAN PIN */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Keamanan PIN</Text>
-          <Text style={styles.cardDesc}>
-            PIN mengunci aplikasi dan menyetujui pembatalan (Void) transaksi.
-          </Text>
-
-          <TouchableOpacity style={styles.outlineActionBtn} onPress={() => setShowPinModal(true)}>
-            <Ionicons name="key-outline" size={18} color="#1E3A8A" />
-            <Text style={styles.outlineActionText}>Ubah PIN Kasir</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* SECTION 5: BACKUP & RESTORE */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Cadangkan & Pulihkan Data</Text>
@@ -440,45 +401,6 @@ export const SettingsScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* PIN VERIFICATION BEFORE CHANGING PIN */}
-      <PinModal
-        visible={showPinModal}
-        title="Verifikasi PIN Lama"
-        subtitle="Masukkan PIN lama Anda sebelum membuat PIN baru"
-        onSuccess={handlePinAuthSuccess}
-        onCancel={() => setShowPinModal(false)}
-      />
-
-      {/* NEW PIN MODAL */}
-      <Modal visible={showNewPinModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Atur PIN Baru</Text>
-            <Text style={styles.modalDesc}>Masukkan PIN baru 4-6 digit:</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="PIN Baru"
-              keyboardType="numeric"
-              secureTextEntry
-              maxLength={6}
-              value={newPin}
-              onChangeText={setNewPin}
-            />
-
-            <Text style={styles.label}>Kode Pemulihan Baru Anda:</Text>
-            <View style={styles.codeBox}>
-              <Text style={styles.codeText}>{newRecoveryCode}</Text>
-            </View>
-            <Text style={styles.codeNote}>Simpan dan catat kode pemulihan baru ini.</Text>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveNewPin}>
-              <Text style={styles.saveBtnText}>Simpan PIN Baru</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

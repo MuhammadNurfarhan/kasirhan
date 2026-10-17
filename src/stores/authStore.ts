@@ -17,16 +17,16 @@ interface AuthState {
   // Actions
   initializeAuth: () => Promise<void>;
   activateWithKey: (key: string) => Promise<boolean>;
-  unlockApp: (pin: string) => Promise<boolean>;
+  unlockApp: (pin?: string) => Promise<boolean>;
   lockApp: () => void;
-  completeSetup: (pin: string, recoveryCode: string) => Promise<void>;
+  completeSetup: (pin?: string, recoveryCode?: string) => Promise<void>;
   resetPin: (code: string, newPin: string) => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isLicensed: false,
   isSetup: false,
-  isLocked: true,
+  isLocked: false,
   deviceId: "",
   isLoading: true,
 
@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         deviceId,
         isLicensed: licensed,
         isSetup: setup,
-        isLocked: setup ? true : false, // lock if already setup
+        isLocked: false,
         isLoading: false,
       });
     } catch (e) {
@@ -52,36 +52,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const success = await activate(key);
     if (success) {
       const setup = await isSetupCompleted();
-      set({ isLicensed: true, isSetup: setup, isLocked: setup ? true : false });
+      set({ isLicensed: true, isSetup: setup, isLocked: false });
     }
     return success;
   },
 
-  unlockApp: async (pin: string) => {
-    const valid = await verifyUserPin(pin);
-    if (valid) {
-      set({ isLocked: false });
-      return true;
-    }
-    return false;
+  unlockApp: async (_pin?: string) => {
+    set({ isLocked: false });
+    return true;
   },
 
   lockApp: () => {
-    if (get().isSetup) {
-      set({ isLocked: true });
-    }
+    // PIN removed, app does not lock
+    set({ isLocked: false });
   },
 
-  completeSetup: async (pin: string, recoveryCode: string) => {
+  completeSetup: async (pin?: string, recoveryCode?: string) => {
     await setupSecurity(pin, recoveryCode);
     set({ isSetup: true, isLocked: false });
   },
 
-  resetPin: async (code: string, newPin: string) => {
-    const success = await resetPinWithRecoveryCode(code, newPin);
-    if (success) {
-      set({ isLocked: false });
-    }
-    return success;
+  resetPin: async (_code: string, _newPin: string) => {
+    return true;
   },
 }));

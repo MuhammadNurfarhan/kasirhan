@@ -50,11 +50,19 @@ export async function isSetupCompleted(): Promise<boolean> {
   return Boolean(row?.is_setup_completed);
 }
 
-export async function setupSecurity(pin: string, recoveryCode: string): Promise<void> {
+export async function setupSecurity(pin?: string, recoveryCode?: string): Promise<void> {
   const db = await getDb();
-  const salt = generateSalt();
-  const pinHash = await hashPin(pin, salt);
-  const recoveryHash = await hashRecoveryCode(recoveryCode);
+  let pinHash = null;
+  let salt = null;
+  let recoveryHash = null;
+
+  if (pin) {
+    salt = generateSalt();
+    pinHash = await hashPin(pin, salt);
+  }
+  if (recoveryCode) {
+    recoveryHash = await hashRecoveryCode(recoveryCode);
+  }
 
   await db.runAsync(
     `INSERT OR REPLACE INTO auth_security (

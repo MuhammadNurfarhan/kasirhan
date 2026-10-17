@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessType, BusinessProfile } from '../types';
 import { BUSINESS_TYPE_PRESETS, getDefaultCategoriesForType } from '../utils/defaults';
-import { generateRecoveryCode } from '../utils/security';
 import { saveBusinessProfile } from '../repositories/profileRepository';
 import { seedCategories } from '../repositories/categoryRepository';
 import { useAuthStore } from '../stores/authStore';
@@ -23,7 +22,7 @@ export const OnboardingScreen: React.FC = () => {
   const { completeSetup } = useAuthStore();
   const { updateProfile } = useAppStore();
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2>(1);
 
   // Step 1: Business Type
   const [selectedType, setSelectedType] = useState<BusinessType>('kelontong');
@@ -33,57 +32,20 @@ export const OnboardingScreen: React.FC = () => {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>('58mm');
-
-  // Step 3: PIN
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-
-  // Step 4: Recovery Code
-  const [recoveryCode, setRecoveryCode] = useState('');
-  const [hasCopiedCode, setHasCopiedCode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleNextStep1 = () => {
     setStep(2);
   };
 
-  const handleNextStep2 = () => {
+  const handleFinishOnboarding = async () => {
     if (!businessName.trim()) {
       Alert.alert('Peringatan', 'Silakan isi nama usaha Anda.');
       return;
     }
-    setStep(3);
-  };
-
-  const handleNextStep3 = () => {
-    if (pin.length < 4 || pin.length > 6) {
-      Alert.alert('Peringatan', 'PIN harus berupa 4 hingga 6 digit angka.');
-      return;
-    }
-    if (pin !== confirmPin) {
-      Alert.alert('Peringatan', 'Konfirmasi PIN tidak cocok.');
-      return;
-    }
-    const code = generateRecoveryCode();
-    setRecoveryCode(code);
-    setStep(4);
-  };
-
-  const handleCopyCode = () => {
-    Clipboard.setString(recoveryCode);
-    setHasCopiedCode(true);
-    Alert.alert('Tersalin', 'Kode pemulihan berhasil disalin! Simpan baik-baik di catatan aman.');
-  };
-
-  const handleFinishOnboarding = async () => {
-    if (!hasCopiedCode) {
-      Alert.alert(
-        'Penting',
-        'Harap salin atau catat Kode Pemulihan Anda terlebih dahulu agar tidak kehilangan akses jika lupa PIN.'
-      );
-      return;
-    }
 
     try {
+      setIsSaving(true);
       const preset = BUSINESS_TYPE_PRESETS.find((p) => p.id === selectedType);
       const profile: BusinessProfile = {
         name: businessName.trim(),
@@ -106,12 +68,14 @@ export const OnboardingScreen: React.FC = () => {
       const defaultCats = getDefaultCategoriesForType(selectedType);
       await seedCategories(defaultCats);
 
-      // Save security
-      await completeSetup(pin, recoveryCode);
+      // Mark setup completed without PIN
+      await completeSetup();
 
       Alert.alert('Selamat!', 'Setup usaha berhasil. Siap mencatat transaksi pertama Anda.');
     } catch (e: any) {
       Alert.alert('Kesalahan', e?.message || 'Gagal menyimpan data setup.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -120,7 +84,7 @@ export const OnboardingScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Step Indicator */}
         <View style={styles.stepIndicator}>
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2].map((s) => (
             <View
               key={s}
               style={[
@@ -237,100 +201,17 @@ export const OnboardingScreen: React.FC = () => {
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep(1)}>
                 <Text style={styles.secondaryBtnText}>Kembali</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleNextStep2}>
-                <Text style={styles.primaryBtnText}>Lanjut ke PIN</Text>
+              <TouchableOpacity
+                style={[styles.primaryBtn, isSaving && styles.btnDisabled]}
+                onPress={handleFinishOnboarding}
+                disabled={isSaving}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {isSaving ? 'Menyimpan...' : 'Mulai Gunakan Kasirhan'}
+                </Text>
+                <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
-
-        {/* STEP 3: SETUP PIN */}
-        {step === 3 && (
-          <View style={styles.stepBox}>
-            <Text style={styles.stepTitle}>Atur PIN Keamanan</Text>
-            <Text style={styles.stepSubtitle}>
-              PIN 4-6 digit digunakan untuk mengunci layar kasir dan menyetujui pembatalan (Void) transaksi.
-            </Text>
-
-            <Text style={styles.label}>Buat PIN (4-6 Angka):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan PIN"
-              placeholderTextColor="#94A3B8"
-              keyboardType="numeric"
-              secureTextEntry
-              maxLength={6}
-              value={pin}
-              onChangeText={setPin}
-            />
-
-            <Text style={styles.label}>Ulangi Konfirmasi PIN:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ketik ulang PIN"
-              placeholderTextColor="#94A3B8"
-              keyboardType="numeric"
-              secureTextEntry
-              maxLength={6}
-              value={confirmPin}
-              onChangeText={setConfirmPin}
-            />
-
-            <View style={styles.btnRow}>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep(2)}>
-                <Text style={styles.secondaryBtnText}>Kembali</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleNextStep3}>
-                <Text style={styles.primaryBtnText}>Buat Kode Pemulihan</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* STEP 4: KODE PEMULIHAN */}
-        {step === 4 && (
-          <View style={styles.stepBox}>
-            <View style={styles.warningHeader}>
-              <Ionicons name="shield-checkmark" size={36} color="#059669" />
-              <Text style={styles.stepTitle}>Simpan Kode Pemulihan</Text>
-            </View>
-            <Text style={styles.stepSubtitle}>
-              Karena Kasirhan 100% offline tanpa akun, kode 12 karakter ini adalah SATU-SATUNYA cara mereset PIN Anda tanpa kehilangan data jika suatu saat lupa PIN!
-            </Text>
-
-            <View style={styles.codeBox}>
-              <Text style={styles.codeText}>{recoveryCode}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.copyCodeBtn} onPress={handleCopyCode} activeOpacity={0.8}>
-              <Ionicons name={hasCopiedCode ? 'checkmark' : 'copy-outline'} size={20} color="#FFFFFF" />
-              <Text style={styles.copyCodeBtnText}>
-                {hasCopiedCode ? 'Kode Berhasil Disalin!' : 'Salin Kode Pemulihan'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.confirmCheckbox}
-              onPress={() => setHasCopiedCode((prev) => !prev)}
-            >
-              <Ionicons
-                name={hasCopiedCode ? 'checkbox' : 'square-outline'}
-                size={24}
-                color={hasCopiedCode ? '#1E3A8A' : '#64748B'}
-              />
-              <Text style={styles.confirmCheckboxText}>
-                Saya sudah mencatat / menyimpan kode pemulihan ini di tempat aman.
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.primaryBtn, !hasCopiedCode && styles.btnDisabled]}
-              onPress={handleFinishOnboarding}
-              disabled={!hasCopiedCode}
-            >
-              <Text style={styles.primaryBtnText}>Mulai Gunakan Kasirhan</Text>
-              <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>

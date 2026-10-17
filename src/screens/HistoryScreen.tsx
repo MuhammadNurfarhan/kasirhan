@@ -19,7 +19,6 @@ import {
 } from '../repositories/transactionRepository';
 import { formatRupiah, formatDateTime } from '../utils/format';
 import { ReceiptModal } from '../components/ReceiptModal';
-import { PinModal } from '../components/PinModal';
 
 export const HistoryScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -34,7 +33,6 @@ export const HistoryScreen: React.FC = () => {
   const [voidTargetTx, setVoidTargetTx] = useState<Transaction | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [showVoidReasonModal, setShowVoidReasonModal] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
 
   useEffect(() => {
     loadTransactions();
@@ -73,23 +71,19 @@ export const HistoryScreen: React.FC = () => {
     setShowVoidReasonModal(true);
   };
 
-  const handleConfirmVoidReason = () => {
+  const handleConfirmVoidReason = async () => {
     if (!voidReason.trim()) {
       Alert.alert('Peringatan', 'Harap isi alasan pembatalan (void).');
       return;
     }
-    setShowVoidReasonModal(false);
-    setShowPinModal(true);
-  };
-
-  const handlePinSuccess = async () => {
     if (!voidTargetTx) return;
+
+    setShowVoidReasonModal(false);
     try {
       await voidTransaction(voidTargetTx.id, voidReason);
-      setShowPinModal(false);
       setVoidTargetTx(null);
       setVoidReason('');
-      Alert.alert('Sukses', 'Transaksi berhasil di-void dan stok telah dikembalikan.');
+      Alert.alert('Sukses', 'Transaksi berhasil dibatalkan (void) dan stok telah dikembalikan.');
       loadTransactions();
     } catch (e: any) {
       Alert.alert('Gagal Void', e?.message);
@@ -268,21 +262,12 @@ export const HistoryScreen: React.FC = () => {
                 <Text style={styles.cancelText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.nextPinBtn} onPress={handleConfirmVoidReason}>
-                <Text style={styles.nextPinText}>Lanjut ke PIN</Text>
+                <Text style={styles.nextPinText}>Batalkan Transaksi</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      {/* PIN VERIFICATION MODAL FOR VOID */}
-      <PinModal
-        visible={showPinModal}
-        title="Otorisasi Void"
-        subtitle="Masukkan PIN untuk menyetujui pembatalan transaksi ini"
-        onSuccess={handlePinSuccess}
-        onCancel={() => setShowPinModal(false)}
-      />
 
       {/* RECEIPT MODAL */}
       <ReceiptModal

@@ -13,7 +13,6 @@ import { useAuthStore } from './src/stores/authStore';
 import { useAppStore } from './src/stores/appStore';
 import { ActivationScreen } from './src/screens/ActivationScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
-import { PinLockScreen } from './src/screens/PinLockScreen';
 import { CashierScreen } from './src/screens/CashierScreen';
 import { ProductsScreen } from './src/screens/ProductsScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -35,10 +34,8 @@ function AppContent() {
   const {
     isLicensed,
     isSetup,
-    isLocked,
     isLoading,
     initializeAuth,
-    lockApp,
   } = useAuthStore();
 
   const { currentScreen, loadProfile } = useAppStore();
@@ -46,17 +43,6 @@ function AppContent() {
   useEffect(() => {
     initializeAuth();
     loadProfile();
-
-    // Auto-lock when app moves to background
-    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        lockApp();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }, []);
 
   if (isLoading) {
@@ -84,16 +70,6 @@ function AppContent() {
       <>
         <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <OnboardingScreen />
-      </>
-    );
-  }
-
-  // 3. Security PIN Lock Screen
-  if (isLocked) {
-    return (
-      <>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-        <PinLockScreen />
       </>
     );
   }
