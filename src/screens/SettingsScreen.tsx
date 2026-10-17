@@ -32,6 +32,7 @@ export const SettingsScreen: React.FC = () => {
   const [taxEnabled, setTaxEnabled] = useState(profile.tax_enabled);
   const [taxPercentage, setTaxPercentage] = useState(profile.tax_percentage.toString());
   const [qrisImageUri, setQrisImageUri] = useState<string | null>(profile.qris_image_uri || null);
+  const [logoImageUri, setLogoImageUri] = useState<string | null>(profile.logo_image_uri || null);
   const [tableEnabled, setTableEnabled] = useState(profile.table_enabled);
 
   // Backup / Restore State
@@ -39,6 +40,54 @@ export const SettingsScreen: React.FC = () => {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreJson, setRestoreJson] = useState('');
   const [isRestoring, setIsRestoring] = useState(false);
+
+  const handlePickLogoImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert(
+          'Izin Diperlukan',
+          'Aplikasi membutuhkan izin akses galeri foto untuk memilih logo usaha.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const pickedAsset = result.assets[0];
+        const ext = pickedAsset.uri.split('.').pop()?.split('?')[0] || 'jpg';
+        const targetUri = `${FileSystem.documentDirectory}store_logo_${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({
+          from: pickedAsset.uri,
+          to: targetUri,
+        });
+        setLogoImageUri(targetUri);
+      }
+    } catch (e: any) {
+      Alert.alert('Gagal Memilih Foto', e?.message || 'Terjadi kesalahan saat membuka galeri foto.');
+    }
+  };
+
+  const handleRemoveLogoImage = () => {
+    Alert.alert(
+      'Hapus Logo Toko',
+      'Apakah Anda yakin ingin menghapus foto logo usaha dari struk?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: () => setLogoImageUri(null),
+        },
+      ]
+    );
+  };
 
   const handlePickQrisImage = async () => {
     try {
@@ -104,6 +153,7 @@ export const SettingsScreen: React.FC = () => {
       tax_percentage: parseFloat(taxPercentage) || 11,
       qris_payload: qrisImageUri ? 'QRIS_IMAGE' : null,
       qris_image_uri: qrisImageUri || null,
+      logo_image_uri: logoImageUri || null,
       table_enabled: tableEnabled,
     };
     await updateProfile(updated);
@@ -222,6 +272,55 @@ export const SettingsScreen: React.FC = () => {
             onChangeText={setFooterNote}
             placeholder="Pesan di bagian bawah struk..."
           />
+
+          {/* FOTO LOGO USAHA / TOKO */}
+          <Text style={styles.label}>Logo Toko / Usaha (Opsional):</Text>
+          <Text style={styles.qrisDesc}>
+            Logo akan dicetak di bagian paling atas struk (preview struk, cetak sistem/PDF, dan bagikan). Format rasio kotak (1:1) disarankan untuk hasil terbaik.
+          </Text>
+
+          {logoImageUri ? (
+            <View style={styles.logoPreviewBox}>
+              <Image
+                source={{ uri: logoImageUri }}
+                style={styles.logoPreviewImage}
+                resizeMode="contain"
+              />
+              <View style={styles.logoActionsRow}>
+                <TouchableOpacity
+                  style={styles.qrisChangeBtn}
+                  onPress={handlePickLogoImage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="image-outline" size={16} color="#1E3A8A" />
+                  <Text style={styles.qrisChangeBtnText}>Ganti Logo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.qrisDeleteBtn}
+                  onPress={handleRemoveLogoImage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  <Text style={styles.qrisDeleteBtnText}>Hapus</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.logoUploadBox}
+              onPress={handlePickLogoImage}
+              activeOpacity={0.7}
+            >
+              <View style={styles.logoUploadIconWrapper}>
+                <Ionicons name="business-outline" size={28} color="#1E3A8A" />
+              </View>
+              <Text style={styles.qrisUploadTitle}>Pilih Logo Usaha</Text>
+              <Text style={styles.qrisUploadSubtitle}>
+                Ketuk untuk memilih foto/logo dari galeri perangkat
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* SECTION 2: PRINTER & STRUK */}
@@ -841,5 +940,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     textAlign: 'center',
+  },
+  logoPreviewBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoPreviewImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  logoActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  logoUploadBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#93C5FD',
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    gap: 6,
+  },
+  logoUploadIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
   },
 });

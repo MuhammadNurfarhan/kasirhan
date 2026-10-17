@@ -17,6 +17,11 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
   } catch {
     // Column already exists
   }
+  try {
+    await db.execAsync('ALTER TABLE business_profile ADD COLUMN logo_image_uri TEXT DEFAULT NULL;');
+  } catch {
+    // Column already exists
+  }
 }
 
 /**

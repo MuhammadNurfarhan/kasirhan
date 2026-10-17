@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -154,6 +155,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                   ) : null}
                 </View>
               )}
+
+              {profile.logo_image_uri ? (
+                <View style={styles.logoContainer}>
+                  <Image
+                    source={{ uri: profile.logo_image_uri }}
+                    style={styles.storeLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : null}
 
               <Text style={styles.storeName}>{profile.name}</Text>
               {profile.address ? <Text style={styles.storeAddress}>{profile.address}</Text> : null}
@@ -383,6 +394,15 @@ const styles = StyleSheet.create({
     color: '#991B1B',
     fontSize: 11,
     marginTop: 2,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  storeLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
   },
   storeName: {
     fontSize: 16,

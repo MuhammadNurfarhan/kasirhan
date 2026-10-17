@@ -1,10 +1,31 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Linking, Platform } from 'react-native';
 import { Transaction, BusinessProfile } from '../types';
 import { formatRupiah, formatDateTime, formatQuantity } from './format';
 
-export function generateReceiptHtml(tx: Transaction, profile: BusinessProfile): string {
+export async function getLogoBase64(logoUri: string | null): Promise<string | null> {
+  if (!logoUri) return null;
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(logoUri);
+    if (!fileInfo.exists) return null;
+    const base64 = await FileSystem.readAsStringAsync(logoUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const ext = logoUri.split('.').pop()?.toLowerCase() || 'jpeg';
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+    return `data:${mime};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+export function generateReceiptHtml(
+  tx: Transaction,
+  profile: BusinessProfile,
+  logoSrc?: string | null
+): string {
   const is80mm = profile.paper_size === '80mm';
   const widthPx = is80mm ? '380px' : '280px';
   const items = tx.items || [];
@@ -93,12 +114,22 @@ export function generateReceiptHtml(tx: Transaction, profile: BusinessProfile): 
             padding: 4px 8px;
             margin-bottom: 8px;
           }
+          .store-logo {
+            max-width: 70px;
+            max-height: 70px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+          }
         </style>
       </head>
       <body>
         <div class="receipt-container">
           <div class="header">
             ${tx.status === 'void' ? '<div class="void-badge">*** VOID / DIBATALKAN ***</div><br/>' : ''}
+            ${logoSrc ? `<img src="${logoSrc}" class="store-logo" alt="Logo" />` : ''}
             <div class="store-name">${profile.name}</div>
             ${profile.address ? `<div>${profile.address}</div>` : ''}
             ${profile.phone ? `<div>Telp: ${profile.phone}</div>` : ''}
@@ -164,7 +195,8 @@ export function generateReceiptHtml(tx: Transaction, profile: BusinessProfile): 
  * Generate PDF and share via Android share sheet (WhatsApp, Email, Drive)
  */
 export async function shareReceiptPdf(tx: Transaction, profile: BusinessProfile): Promise<void> {
-  const html = generateReceiptHtml(tx, profile);
+  const logoBase64 = await getLogoBase64(profile.logo_image_uri);
+  const html = generateReceiptHtml(tx, profile, logoBase64);
   const { uri } = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, {
@@ -222,6 +254,7 @@ export async function shareReceiptWhatsApp(tx: Transaction, profile: BusinessPro
  * Print receipt using system print / thermal printer
  */
 export async function printReceipt(tx: Transaction, profile: BusinessProfile): Promise<void> {
-  const html = generateReceiptHtml(tx, profile);
+  const logoBase64 = await getLogoBase64(profile.logo_image_uri);
+  const html = generateReceiptHtml(tx, profile, logoBase64);
   await Print.printAsync({ html });
 }

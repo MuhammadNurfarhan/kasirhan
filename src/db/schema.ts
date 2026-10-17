@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS business_profile (
   tax_percentage REAL DEFAULT 11,
   qris_payload TEXT DEFAULT NULL,
   qris_image_uri TEXT DEFAULT NULL,
+  logo_image_uri TEXT DEFAULT NULL,
   table_enabled INTEGER DEFAULT 0
 );
 

@@ -127,6 +127,7 @@ export interface BusinessProfile {
   tax_percentage: number;
   qris_payload: string | null;
   qris_image_uri: string | null;
+  logo_image_uri: string | null;
   table_enabled: boolean;
 }
 

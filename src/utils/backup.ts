@@ -106,6 +106,25 @@ export async function createCompressedBackup(): Promise<string> {
     }
   }
 
+  // Salin file logo toko jika ada
+  if (businessProfile && (businessProfile as any).logo_image_uri?.startsWith('file://')) {
+    try {
+      const logoUri = (businessProfile as any).logo_image_uri;
+      const fileInfo = await FileSystem.getInfoAsync(logoUri);
+      if (fileInfo.exists) {
+        const fileName = logoUri.split('/').pop()?.split('?')[0];
+        if (fileName) {
+          await FileSystem.copyAsync({
+            from: logoUri,
+            to: `${imagesDir}${fileName}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal menyertakan logo toko ke backup:', err);
+    }
+  }
+
   // Kompres folder staging ke file .zip
   const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const zipFileName = `kasirhan-backup-${dateStr}.zip`;
@@ -325,11 +344,11 @@ export async function restoreBackupFromJson(jsonString: string): Promise<boolean
       const bp = data.businessProfile;
       await db.runAsync(
         `INSERT OR REPLACE INTO business_profile (
-          id, name, business_type, address, phone, footer_note, paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, table_enabled
-        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, name, business_type, address, phone, footer_note, paper_size, tax_enabled, tax_percentage, qris_payload, qris_image_uri, logo_image_uri, table_enabled
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           bp.name, bp.business_type, bp.address, bp.phone, bp.footer_note,
-          bp.paper_size, bp.tax_enabled, bp.tax_percentage, bp.qris_payload, bp.qris_image_uri || null, bp.table_enabled
+          bp.paper_size, bp.tax_enabled, bp.tax_percentage, bp.qris_payload, bp.qris_image_uri || null, bp.logo_image_uri || null, bp.table_enabled
         ]
       );
     }
