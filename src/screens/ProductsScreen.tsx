@@ -573,6 +573,7 @@ export const ProductsScreen: React.FC = () => {
               <TextInput
                 style={styles.input}
                 placeholder="0"
+                placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
                 value={sellPrice}
                 onChangeText={setSellPrice}
@@ -582,6 +583,7 @@ export const ProductsScreen: React.FC = () => {
               <TextInput
                 style={styles.input}
                 placeholder="0"
+                placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
                 value={costPrice}
                 onChangeText={setCostPrice}
@@ -595,6 +597,7 @@ export const ProductsScreen: React.FC = () => {
                   <TextInput
                     style={styles.input}
                     placeholder="0"
+                    placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
                     value={initialStock}
                     onChangeText={setInitialStock}
@@ -604,6 +607,7 @@ export const ProductsScreen: React.FC = () => {
                   <TextInput
                     style={styles.input}
                     placeholder="5"
+                    placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
                     value={lowStockThreshold}
                     onChangeText={setLowStockThreshold}
@@ -616,6 +620,7 @@ export const ProductsScreen: React.FC = () => {
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Scan atau ketik barcode..."
+                  placeholderTextColor="#94A3B8"
                   value={barcode}
                   onChangeText={setBarcode}
                 />
@@ -655,6 +660,7 @@ export const ProductsScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Jumlah..."
+              placeholderTextColor="#94A3B8"
               keyboardType="numeric"
               value={restockQty}
               onChangeText={setRestockQty}
@@ -665,6 +671,7 @@ export const ProductsScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Harga beli..."
+              placeholderTextColor="#94A3B8"
               keyboardType="numeric"
               value={restockCost}
               onChangeText={setRestockCost}
@@ -674,6 +681,7 @@ export const ProductsScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Contoh: Belanja Grosir Pasar"
+              placeholderTextColor="#94A3B8"
               value={restockNote}
               onChangeText={setRestockNote}
             />
@@ -700,6 +708,7 @@ export const ProductsScreen: React.FC = () => {
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Nama kategori baru..."
+                placeholderTextColor="#94A3B8"
                 value={newCatName}
                 onChangeText={setNewCatName}
               />

@@ -248,6 +248,7 @@ export const SettingsScreen: React.FC = () => {
             value={name}
             onChangeText={setName}
             placeholder="Nama Toko"
+            placeholderTextColor="#94A3B8"
           />
 
           <Text style={styles.label}>Alamat</Text>
@@ -256,6 +257,7 @@ export const SettingsScreen: React.FC = () => {
             value={address}
             onChangeText={setAddress}
             placeholder="Alamat Toko"
+            placeholderTextColor="#94A3B8"
           />
 
           <Text style={styles.label}>Nomor Telepon / WhatsApp</Text>
@@ -264,6 +266,7 @@ export const SettingsScreen: React.FC = () => {
             value={phone}
             onChangeText={setPhone}
             placeholder="08xxxxxxxxxx"
+            placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
           />
 
@@ -273,6 +276,7 @@ export const SettingsScreen: React.FC = () => {
             value={footerNote}
             onChangeText={setFooterNote}
             placeholder="Pesan di bagian bawah struk..."
+            placeholderTextColor="#94A3B8"
           />
 
           {/* FOTO LOGO USAHA / TOKO */}
@@ -376,6 +380,7 @@ export const SettingsScreen: React.FC = () => {
                 onChangeText={setTaxPercentage}
                 keyboardType="numeric"
                 placeholder="11"
+                placeholderTextColor="#94A3B8"
               />
             </>
           )}

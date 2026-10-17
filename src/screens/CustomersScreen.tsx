@@ -173,6 +173,7 @@ export const CustomersScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Contoh: Pak Budi"
+              placeholderTextColor="#94A3B8"
               value={name}
               onChangeText={setName}
             />
@@ -181,6 +182,7 @@ export const CustomersScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Contoh: 08123456789"
+              placeholderTextColor="#94A3B8"
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
@@ -190,6 +192,7 @@ export const CustomersScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               placeholder="Contoh: RT 02 / RW 05"
+              placeholderTextColor="#94A3B8"
               value={address}
               onChangeText={setAddress}
             />

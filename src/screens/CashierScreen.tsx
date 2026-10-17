@@ -593,6 +593,7 @@ export const CashierScreen: React.FC = () => {
               value={weightInput}
               onChangeText={setWeightInput}
               placeholder="0.0"
+              placeholderTextColor="#94A3B8"
               autoFocus
             />
 
@@ -643,12 +644,14 @@ export const CashierScreen: React.FC = () => {
                 <TextInput
                   style={styles.inputSmall}
                   placeholder="Catatan / Nama Pelanggan"
+                  placeholderTextColor="#94A3B8"
                   value={holdName}
                   onChangeText={setHoldName}
                 />
                 <TextInput
                   style={styles.inputSmall}
                   placeholder="Nomor Meja (opsional)"
+                  placeholderTextColor="#94A3B8"
                   value={holdTable}
                   onChangeText={setHoldTable}
                 />
