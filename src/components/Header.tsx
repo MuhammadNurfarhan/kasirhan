@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../stores/appStore';
-import { useAuthStore } from '../stores/authStore';
 import { useCartStore } from '../stores/cartStore';
 
 interface HeaderProps {
@@ -11,6 +10,7 @@ interface HeaderProps {
   subtitle?: string;
   onBarcodePress?: () => void;
   onHoldPress?: () => void;
+  onSellModePress?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,9 +18,9 @@ export const Header: React.FC<HeaderProps> = ({
   subtitle,
   onBarcodePress,
   onHoldPress,
+  onSellModePress,
 }) => {
   const { profile } = useAppStore();
-  const { lockApp } = useAuthStore();
   const { items } = useCartStore();
   const insets = useSafeAreaInsets();
 
@@ -33,6 +33,13 @@ export const Header: React.FC<HeaderProps> = ({
       </View>
 
       <View style={styles.right}>
+        {onSellModePress && (
+          <TouchableOpacity style={styles.sellModeHeaderBtn} onPress={onSellModePress} activeOpacity={0.8}>
+            <Ionicons name="tablet-landscape-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.sellModeHeaderBtnText}>Mode Jual</Text>
+          </TouchableOpacity>
+        )}
+
         {onBarcodePress && (
           <TouchableOpacity style={styles.iconBtn} onPress={onBarcodePress} activeOpacity={0.7}>
             <Ionicons name="barcode-outline" size={24} color="#1E3A8A" />
@@ -45,14 +52,6 @@ export const Header: React.FC<HeaderProps> = ({
             {items.length > 0 && <View style={styles.badgeDot} />}
           </TouchableOpacity>
         )}
-
-        <TouchableOpacity
-          style={[styles.iconBtn, styles.lockBtn]}
-          onPress={lockApp}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="lock-closed" size={20} color="#DC2626" />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -101,8 +100,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  lockBtn: {
-    backgroundColor: '#FEE2E2',
+  sellModeHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  sellModeHeaderBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
   },
   badgeDot: {
     position: 'absolute',

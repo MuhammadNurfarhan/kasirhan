@@ -38,7 +38,7 @@ function AppContent() {
     initializeAuth,
   } = useAuthStore();
 
-  const { currentScreen, loadProfile } = useAppStore();
+  const { currentScreen, loadProfile, isSellMode } = useAppStore();
 
   useEffect(() => {
     initializeAuth();
@@ -74,10 +74,14 @@ function AppContent() {
     );
   }
 
-  // 4. Main App Screens
+  // 4. Main App Screens (Hide Navbar in Sell Mode)
   return (
     <View style={styles.safeContainer}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar
+        hidden={isSellMode}
+        barStyle="dark-content"
+        backgroundColor="#FFFFFF"
+      />
       <View style={styles.screenContainer}>
         {currentScreen === 'cashier' && <CashierScreen />}
         {currentScreen === 'products' && <ProductsScreen />}
@@ -87,7 +91,7 @@ function AppContent() {
         {currentScreen === 'settings' && <SettingsScreen />}
         {currentScreen === 'faq' && <FaqScreen />}
       </View>
-      <Navbar />
+      {!isSellMode && <Navbar />}
     </View>
   );
 }

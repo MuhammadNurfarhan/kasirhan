@@ -31,7 +31,7 @@ export const CashierScreen: React.FC = () => {
   const isLandscape = width >= 700;
   const insets = useSafeAreaInsets();
 
-  const { profile } = useAppStore();
+  const { profile, isSellMode, enterSellMode, exitSellMode } = useAppStore();
   const {
     items,
     addItem,
@@ -318,16 +318,64 @@ export const CashierScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Header
-        title="Layar Kasir"
-        subtitle={profile.business_type.toUpperCase()}
-        onBarcodePress={() => setShowBarcodeScanner(true)}
-        onHoldPress={handleOpenHoldList}
-      />
+      {!isSellMode ? (
+        <Header
+          title="Layar Kasir"
+          subtitle={profile.business_type.toUpperCase()}
+          onSellModePress={enterSellMode}
+          onBarcodePress={() => setShowBarcodeScanner(true)}
+          onHoldPress={handleOpenHoldList}
+        />
+      ) : (
+        /* Top Navigation Bar in Fullscreen Sell Mode */
+        <View
+          style={[
+            styles.sellModeTopBar,
+            {
+              paddingTop: Math.max(8, insets.top),
+              paddingLeft: Math.max(12, insets.left),
+              paddingRight: Math.max(12, insets.right),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.sellModeBackBtn}
+            onPress={exitSellMode}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            <Text style={styles.sellModeBackText}>Kembali (Portrait)</Text>
+          </TouchableOpacity>
 
-      <View style={[styles.body, isLandscape ? styles.bodyLandscape : styles.bodyPortrait]}>
+          <View style={styles.sellModeTitleBox}>
+            <Text style={styles.sellModeStoreTitle}>{profile.name || 'Kasirhan'}</Text>
+            <Text style={styles.sellModeTag}>MODE JUAL (LANDSCAPE)</Text>
+          </View>
+
+          <View style={styles.sellModeActionRow}>
+            <TouchableOpacity
+              style={styles.sellModeIconBtn}
+              onPress={() => setShowBarcodeScanner(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="barcode-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sellModeIconBtn}
+              onPress={handleOpenHoldList}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="pause-circle-outline" size={20} color="#FFFFFF" />
+              {items.length > 0 && <View style={styles.sellModeBadgeDot} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      <View style={[styles.body, (isLandscape || isSellMode) ? styles.bodyLandscape : styles.bodyPortrait]}>
         {/* LEFT / MAIN CATALOG PANEL */}
-        <View style={[styles.catalogPanel, isLandscape && styles.catalogPanelLandscape]}>
+        <View style={[styles.catalogPanel, (isLandscape || isSellMode) && styles.catalogPanelLandscape]}>
           {/* Search Bar */}
           <View style={styles.searchBarRow}>
             <View style={styles.searchBox}>
@@ -345,6 +393,18 @@ export const CashierScreen: React.FC = () => {
                 </TouchableOpacity>
               ) : null}
             </View>
+
+            {/* Quick Button Mode Jual in Search Bar row (Portrait only) */}
+            {!isSellMode && !isLandscape && (
+              <TouchableOpacity
+                style={styles.sellModeInlineBtn}
+                onPress={enterSellMode}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="tablet-landscape-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.sellModeInlineText}>Mode Jual</Text>
+              </TouchableOpacity>
+            )}
 
             {profile.table_enabled && (
               <TouchableOpacity
@@ -458,16 +518,16 @@ export const CashierScreen: React.FC = () => {
           </ScrollView>
         </View>
 
-        {/* RIGHT CART PANEL (Visible in Landscape) */}
-        {isLandscape && (
+        {/* RIGHT CART PANEL (Visible in Landscape or Sell Mode) */}
+        {(isLandscape || isSellMode) && (
           <View style={styles.cartPanelLandscape}>
             {renderCartList()}
           </View>
         )}
       </View>
 
-      {/* PORTRAIT BOTTOM FLOATING CART BAR */}
-      {!isLandscape && (
+      {/* PORTRAIT BOTTOM FLOATING CART BAR (Hidden in Landscape or Sell Mode) */}
+      {!isLandscape && !isSellMode && (
         <View style={styles.bottomCartBar}>
           <TouchableOpacity
             style={styles.cartBarInfo}
@@ -745,6 +805,79 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#0F172A',
     padding: 0,
+  },
+  sellModeInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#059669',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  sellModeInlineText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  sellModeTopBar: {
+    backgroundColor: '#1E3A8A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E40AF',
+  },
+  sellModeBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  sellModeBackText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  sellModeTitleBox: {
+    alignItems: 'center',
+  },
+  sellModeStoreTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  sellModeTag: {
+    color: '#93C5FD',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  sellModeActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sellModeIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sellModeBadgeDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
   },
   tableBtn: {
     flexDirection: 'row',
