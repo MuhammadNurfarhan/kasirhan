@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../components/Header';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
-import { createBackup, restoreBackupFromJson } from '../utils/backup';
+import { createBackup, restoreBackupFromJson, restoreFromZipFile } from '../utils/backup';
 
 export const SettingsScreen: React.FC = () => {
   const { profile, updateProfile, setScreen } = useAppStore();
@@ -114,12 +114,38 @@ export const SettingsScreen: React.FC = () => {
     setIsBackingUp(true);
     try {
       await createBackup();
-      Alert.alert('Sukses', 'File cadangan berhasil dibuat dan siap disimpan/dibagikan.');
+      Alert.alert('Sukses', 'File cadangan (.zip) berhasil dibuat dan siap disimpan/dibagikan.');
     } catch (e: any) {
       Alert.alert('Gagal Backup', e?.message);
     } finally {
       setIsBackingUp(false);
     }
+  };
+
+  const handleRestoreFromZip = async () => {
+    Alert.alert(
+      'Pulihkan Dari File Cadangan (.zip)',
+      'Memulihkan data akan MENIMPA seluruh database dan foto saat ini dengan data dari file cadangan. Lanjutkan?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Pilih File ZIP',
+          onPress: async () => {
+            setIsRestoring(true);
+            try {
+              const success = await restoreFromZipFile();
+              setIsRestoring(false);
+              if (success) {
+                Alert.alert('Sukses', 'Data dan foto produk berhasil dipulihkan secara penuh!');
+              }
+            } catch (e: any) {
+              setIsRestoring(false);
+              Alert.alert('Gagal Restore', e?.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleConfirmRestore = async () => {
@@ -311,7 +337,7 @@ export const SettingsScreen: React.FC = () => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Cadangkan & Pulihkan Data</Text>
           <Text style={styles.cardDesc}>
-            Data Kasirhan 100% tersimpan secara offline di perangkat ini. Buat cadangan secara berkala agar aman.
+            Data Kasirhan 100% tersimpan secara offline di perangkat ini. Buat cadangan terkompresi (.zip) secara berkala yang mencakup seluruh database & foto produk.
           </Text>
 
           <View style={styles.backupButtonsRow}>
@@ -320,20 +346,27 @@ export const SettingsScreen: React.FC = () => {
               onPress={handleCreateBackup}
               disabled={isBackingUp}
             >
-              <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="archive-outline" size={18} color="#FFFFFF" />
               <Text style={styles.backupBtnText}>
-                {isBackingUp ? 'Membuat Cadangan...' : 'Cadangkan Data (Backup)'}
+                {isBackingUp ? 'Membuat Cadangan...' : 'Cadangkan Data (.zip)'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.restoreBtn}
-              onPress={() => setShowRestoreModal(true)}
+              onPress={handleRestoreFromZip}
             >
-              <Ionicons name="cloud-download-outline" size={18} color="#1E3A8A" />
-              <Text style={styles.restoreBtnText}>Pulihkan Data (Restore)</Text>
+              <Ionicons name="folder-open-outline" size={18} color="#1E3A8A" />
+              <Text style={styles.restoreBtnText}>Pulihkan File .ZIP</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={styles.restoreJsonLink}
+            onPress={() => setShowRestoreModal(true)}
+          >
+            <Text style={styles.restoreJsonLinkText}>Atau pulihkan manual via teks JSON lama</Text>
+          </TouchableOpacity>
         </View>
 
         {/* SECTION 6: BANTUAN & INFO LISENSI */}
@@ -573,6 +606,16 @@ const styles = StyleSheet.create({
     color: '#1E3A8A',
     fontWeight: '700',
     fontSize: 13,
+  },
+  restoreJsonLink: {
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+  },
+  restoreJsonLinkText: {
+    fontSize: 11,
+    color: '#64748B',
+    textDecorationLine: 'underline',
   },
   faqLink: {
     flexDirection: 'row',

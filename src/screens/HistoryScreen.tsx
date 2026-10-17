@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FlashList } from '@shopify/flash-list';
 import { Header } from '../components/Header';
 import { Transaction } from '../types';
 import {
@@ -125,108 +126,112 @@ export const HistoryScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Transactions List */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {transactions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>Tidak ada transaksi ditemukan</Text>
-          </View>
-        ) : (
-          transactions.map((tx) => {
-            const isVoid = tx.status === 'void';
-            return (
-              <TouchableOpacity
-                key={tx.id}
-                style={[styles.txCard, isVoid && styles.txCardVoid]}
-                onPress={() => handleOpenReceipt(tx)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.txHeader}>
-                  <View>
-                    <Text style={styles.invoiceNo}>{tx.invoice_number}</Text>
-                    <Text style={styles.txDate}>{formatDateTime(tx.created_at)}</Text>
-                  </View>
-
-                  <View style={styles.statusBadgeRow}>
-                    <View
-                      style={[
-                        styles.methodBadge,
-                        tx.payment_method === 'cash'
-                          ? styles.cashBadge
-                          : styles.qrisBadge,
-                      ]}
-                    >
-                      <Text style={styles.methodBadgeText}>
-                        {tx.payment_method.toUpperCase()}
-                      </Text>
+      {/* Transactions List with FlashList */}
+      {transactions.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+          <Text style={styles.emptyTitle}>Tidak ada transaksi ditemukan</Text>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <FlashList
+            data={transactions}
+            keyExtractor={(tx) => tx.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item: tx }) => {
+              const isVoid = tx.status === 'void';
+              return (
+                <TouchableOpacity
+                  style={[styles.txCard, isVoid && styles.txCardVoid]}
+                  onPress={() => handleOpenReceipt(tx)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.txHeader}>
+                    <View>
+                      <Text style={styles.invoiceNo}>{tx.invoice_number}</Text>
+                      <Text style={styles.txDate}>{formatDateTime(tx.created_at)}</Text>
                     </View>
 
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        isVoid ? styles.voidBadge : styles.completedBadge,
-                      ]}
-                    >
-                      <Text
+                    <View style={styles.statusBadgeRow}>
+                      <View
                         style={[
-                          styles.statusBadgeText,
-                          isVoid ? styles.voidBadgeText : styles.completedBadgeText,
+                          styles.methodBadge,
+                          tx.payment_method === 'cash'
+                            ? styles.cashBadge
+                            : styles.qrisBadge,
                         ]}
                       >
-                        {isVoid ? 'VOID' : 'SELESAI'}
-                      </Text>
+                        <Text style={styles.methodBadgeText}>
+                          {tx.payment_method.toUpperCase()}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          isVoid ? styles.voidBadge : styles.completedBadge,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            isVoid ? styles.voidBadgeText : styles.completedBadgeText,
+                          ]}
+                        >
+                          {isVoid ? 'VOID' : 'SELESAI'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                {/* Customer / Table */}
-                {(tx.customer_name || tx.table_number) && (
-                  <View style={styles.txMetaRow}>
-                    {tx.customer_name && (
-                      <Text style={styles.txMetaText}>Pelanggan: {tx.customer_name}</Text>
-                    )}
-                    {tx.table_number && (
-                      <Text style={styles.txMetaText}>Meja: {tx.table_number}</Text>
-                    )}
-                  </View>
-                )}
+                  {/* Customer / Table */}
+                  {(tx.customer_name || tx.table_number) && (
+                    <View style={styles.txMetaRow}>
+                      {tx.customer_name && (
+                        <Text style={styles.txMetaText}>Pelanggan: {tx.customer_name}</Text>
+                      )}
+                      {tx.table_number && (
+                        <Text style={styles.txMetaText}>Meja: {tx.table_number}</Text>
+                      )}
+                    </View>
+                  )}
 
-                {isVoid && tx.void_reason && (
-                  <Text style={styles.voidReasonText}>Alasan Void: {tx.void_reason}</Text>
-                )}
+                  {isVoid && tx.void_reason && (
+                    <Text style={styles.voidReasonText}>Alasan Void: {tx.void_reason}</Text>
+                  )}
 
-                {/* Amount and Void Button */}
-                <View style={styles.txFooter}>
-                  <Text style={[styles.totalAmount, isVoid && styles.totalAmountVoid]}>
-                    {formatRupiah(tx.total_amount)}
-                  </Text>
+                  {/* Amount and Void Button */}
+                  <View style={styles.txFooter}>
+                    <Text style={[styles.totalAmount, isVoid && styles.totalAmountVoid]}>
+                      {formatRupiah(tx.total_amount)}
+                    </Text>
 
-                  <View style={styles.txActionButtons}>
-                    {!isVoid && (
+                    <View style={styles.txActionButtons}>
+                      {!isVoid && (
+                        <TouchableOpacity
+                          style={styles.voidBtn}
+                          onPress={() => handleStartVoid(tx)}
+                        >
+                          <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                          <Text style={styles.voidBtnText}>Void</Text>
+                        </TouchableOpacity>
+                      )}
+
                       <TouchableOpacity
-                        style={styles.voidBtn}
-                        onPress={() => handleStartVoid(tx)}
+                        style={styles.detailBtn}
+                        onPress={() => handleOpenReceipt(tx)}
                       >
-                        <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                        <Text style={styles.voidBtnText}>Void</Text>
+                        <Ionicons name="receipt-outline" size={16} color="#1E3A8A" />
+                        <Text style={styles.detailBtnText}>Struk</Text>
                       </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity
-                      style={styles.detailBtn}
-                      onPress={() => handleOpenReceipt(tx)}
-                    >
-                      <Ionicons name="receipt-outline" size={16} color="#1E3A8A" />
-                      <Text style={styles.detailBtnText}>Struk</Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
 
       {/* VOID REASON MODAL */}
       <Modal visible={showVoidReasonModal} transparent animationType="fade">

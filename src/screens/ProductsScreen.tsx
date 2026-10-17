@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { Header } from '../components/Header';
 import { Product, ProductVariant, Category, ProductUnit } from '../types';
 import {
@@ -361,100 +362,105 @@ export const ProductsScreen: React.FC = () => {
         ))}
       </ScrollView>
 
-      {/* Product List */}
-      <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent}>
-        {products.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="cube-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>Belum ada produk ditemukan</Text>
-          </View>
-        ) : (
-          products.map((prod) => {
-            const defVar = prod.default_variant || prod.variants?.[0];
-            const stock = defVar?.stock ?? 0;
-            const isLow = prod.track_stock && stock <= prod.low_stock_threshold;
+      {/* Product List with FlashList */}
+      {products.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="cube-outline" size={48} color="#CBD5E1" />
+          <Text style={styles.emptyTitle}>Belum ada produk ditemukan</Text>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <FlashList
+            data={products}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item: prod }) => {
+              const defVar = prod.default_variant || prod.variants?.[0];
+              const stock = defVar?.stock ?? 0;
+              const isLow = prod.track_stock && stock <= prod.low_stock_threshold;
 
-            return (
-              <View key={prod.id} style={styles.prodCard}>
-                <View style={styles.prodMain}>
-                  {prod.image_uri ? (
-                    <Image source={{ uri: prod.image_uri }} style={styles.prodThumbImage} />
-                  ) : (
-                    <View style={styles.prodThumbPlaceholder}>
-                      <Ionicons name="image-outline" size={24} color="#94A3B8" />
-                    </View>
-                  )}
-
-                  <View style={styles.prodInfo}>
-                    <Text style={styles.prodName}>{prod.name}</Text>
-                    <View style={styles.prodMetaRow}>
-                      <Text style={styles.prodCategoryBadge}>
-                        {prod.category_name || 'Tanpa Kategori'}
-                      </Text>
-                      <Text style={styles.prodUnitBadge}>{prod.unit.toUpperCase()}</Text>
-                      {prod.is_weighted && (
-                        <Text style={styles.weightedBadge}>Jual per Kg/Liter</Text>
-                      )}
-                    </View>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.sellPriceText}>
-                        Jual: {formatRupiah(defVar?.sell_price)}
-                      </Text>
-                      <Text style={styles.costPriceText}>
-                        HPP: {formatRupiah(defVar?.cost_price)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Stock & Action buttons */}
-                  <View style={styles.stockCol}>
-                    {prod.track_stock ? (
-                      <View style={[styles.stockBadge, isLow && styles.stockBadgeLow]}>
-                        <Text style={[styles.stockText, isLow && styles.stockTextLow]}>
-                          {formatQuantity(stock, prod.is_weighted, prod.unit)}
-                        </Text>
-                        <Text style={styles.stockLabel}>Stok</Text>
-                      </View>
+              return (
+                <View style={styles.prodCard}>
+                  <View style={styles.prodMain}>
+                    {prod.image_uri ? (
+                      <Image source={{ uri: prod.image_uri }} style={styles.prodThumbImage} />
                     ) : (
-                      <View style={styles.stockBadgeNoTrack}>
-                        <Text style={styles.stockTextNoTrack}>Jasa / No-stok</Text>
+                      <View style={styles.prodThumbPlaceholder}>
+                        <Ionicons name="image-outline" size={24} color="#94A3B8" />
                       </View>
                     )}
+
+                    <View style={styles.prodInfo}>
+                      <Text style={styles.prodName}>{prod.name}</Text>
+                      <View style={styles.prodMetaRow}>
+                        <Text style={styles.prodCategoryBadge}>
+                          {prod.category_name || 'Tanpa Kategori'}
+                        </Text>
+                        <Text style={styles.prodUnitBadge}>{prod.unit.toUpperCase()}</Text>
+                        {prod.is_weighted && (
+                          <Text style={styles.weightedBadge}>Jual per Kg/Liter</Text>
+                        )}
+                      </View>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.sellPriceText}>
+                          Jual: {formatRupiah(defVar?.sell_price)}
+                        </Text>
+                        <Text style={styles.costPriceText}>
+                          HPP: {formatRupiah(defVar?.cost_price)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Stock & Action buttons */}
+                    <View style={styles.stockCol}>
+                      {prod.track_stock ? (
+                        <View style={[styles.stockBadge, isLow && styles.stockBadgeLow]}>
+                          <Text style={[styles.stockText, isLow && styles.stockTextLow]}>
+                            {formatQuantity(stock, prod.is_weighted, prod.unit)}
+                          </Text>
+                          <Text style={styles.stockLabel}>Stok</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.stockBadgeNoTrack}>
+                          <Text style={styles.stockTextNoTrack}>Jasa / No-stok</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Bottom Card Actions */}
+                  <View style={styles.cardActions}>
+                    {prod.track_stock && defVar && (
+                      <TouchableOpacity
+                        style={styles.restockBtn}
+                        onPress={() => handleOpenRestock(defVar)}
+                      >
+                        <Ionicons name="add-circle-outline" size={16} color="#059669" />
+                        <Text style={styles.restockBtnText}>+ Restok / HPP</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={() => handleOpenEditProduct(prod)}
+                    >
+                      <Ionicons name="create-outline" size={16} color="#1E3A8A" />
+                      <Text style={styles.editBtnText}>Edit</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDeleteProduct(prod)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                    </TouchableOpacity>
                   </View>
                 </View>
-
-                {/* Bottom Card Actions */}
-                <View style={styles.cardActions}>
-                  {prod.track_stock && defVar && (
-                    <TouchableOpacity
-                      style={styles.restockBtn}
-                      onPress={() => handleOpenRestock(defVar)}
-                    >
-                      <Ionicons name="add-circle-outline" size={16} color="#059669" />
-                      <Text style={styles.restockBtnText}>+ Restok / HPP</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => handleOpenEditProduct(prod)}
-                  >
-                    <Ionicons name="create-outline" size={16} color="#1E3A8A" />
-                    <Text style={styles.editBtnText}>Edit</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => handleDeleteProduct(prod)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+              );
+            }}
+          />
+        </View>
+      )}
 
       {/* ADD / EDIT PRODUCT MODAL */}
       <Modal visible={showProductModal} animationType="slide" onRequestClose={() => setShowProductModal(false)}>

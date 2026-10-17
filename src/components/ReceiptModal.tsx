@@ -14,6 +14,13 @@ import { Transaction } from '../types';
 import { useAppStore } from '../stores/appStore';
 import { formatRupiah, formatDateTime, formatQuantity } from '../utils/format';
 import { printReceipt, shareReceiptPdf, shareReceiptWhatsApp } from '../utils/receipt';
+import {
+  printReceiptBluetooth,
+  getPairedPrinters,
+  BluetoothPrinterDevice,
+  getDefaultPrinter,
+  saveDefaultPrinter,
+} from '../utils/bluetoothPrinter';
 
 interface ReceiptModalProps {
   visible: boolean;
@@ -29,13 +36,74 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const insets = useSafeAreaInsets();
   const { profile } = useAppStore();
 
+  // Bluetooth Printer states
+  const [showPrinterSelector, setShowPrinterSelector] = React.useState(false);
+  const [pairedPrinters, setPairedPrinters] = React.useState<BluetoothPrinterDevice[]>([]);
+  const [isPrintingBt, setIsPrintingBt] = React.useState(false);
+
   if (!transaction) return null;
 
-  const handlePrint = async () => {
+  const handlePrintSystem = async () => {
     try {
       await printReceipt(transaction, profile);
     } catch (e: any) {
       Alert.alert('Gagal Mencetak', e?.message || 'Pastikan printer terhubung.');
+    }
+  };
+
+  const handlePrintBluetoothDirect = async () => {
+    try {
+      const defaultAddr = await getDefaultPrinter();
+      if (!defaultAddr) {
+        // Belum ada printer tersimpan, buka pemilih printer
+        await openPrinterSelector();
+        return;
+      }
+      setIsPrintingBt(true);
+      await printReceiptBluetooth(transaction, profile, defaultAddr);
+      setIsPrintingBt(false);
+      Alert.alert('Sukses', 'Struk berhasil dikirim ke printer Bluetooth.');
+    } catch (e: any) {
+      setIsPrintingBt(false);
+      Alert.alert(
+        'Printer Bluetooth',
+        `${e?.message || 'Gagal mencetak'}\n\nIngin memilih ulang printer Bluetooth?`,
+        [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Pilih Printer', onPress: openPrinterSelector },
+        ]
+      );
+    }
+  };
+
+  const openPrinterSelector = async () => {
+    try {
+      const printers = await getPairedPrinters();
+      if (printers.length === 0) {
+        Alert.alert(
+          'Tidak Ada Printer Terpasang',
+          'Pastikan printer thermal Bluetooth Anda sudah di-pairing di Pengaturan Bluetooth HP Android Anda.'
+        );
+        return;
+      }
+      setPairedPrinters(printers);
+      setShowPrinterSelector(true);
+    } catch (e: any) {
+      Alert.alert('Gagal Memindai Bluetooth', e?.message);
+    }
+  };
+
+  const handleSelectPrinter = async (device: BluetoothPrinterDevice) => {
+    setShowPrinterSelector(false);
+    await saveDefaultPrinter(device.address);
+    try {
+      setIsPrintingBt(true);
+      await printReceiptBluetooth(transaction, profile, device.address);
+      setIsPrintingBt(false);
+      Alert.alert('Sukses', `Berhasil mencetak ke ${device.name}`);
+    } catch (e: any) {
+      setIsPrintingBt(false);
+      Alert.alert('Gagal Cetak', e?.message);
     }
   };
 
@@ -173,23 +241,75 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
           {/* Action Buttons */}
           <View style={styles.actionGrid}>
-            <TouchableOpacity style={[styles.actionBtn, styles.printBtn]} onPress={handlePrint}>
-              <Ionicons name="print" size={20} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Cetak Struk</Text>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.btPrintBtn, isPrintingBt && styles.btnDisabled]}
+              onPress={handlePrintBluetoothDirect}
+              disabled={isPrintingBt}
+            >
+              <Ionicons name="bluetooth" size={18} color="#FFFFFF" />
+              <Text style={styles.actionBtnText}>
+                {isPrintingBt ? 'Mencetak...' : 'Thermal BT'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.actionBtn, styles.printBtn]} onPress={handlePrintSystem}>
+              <Ionicons name="print-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.actionBtnText}>Sistem</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.actionBtn, styles.waBtn]} onPress={handleShareWhatsApp}>
-              <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
+              <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
               <Text style={styles.actionBtnText}>WhatsApp</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.actionBtn, styles.pdfBtn]} onPress={handleSharePdf}>
-              <Ionicons name="share-social" size={20} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Bagikan PDF</Text>
+              <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.actionBtnText}>PDF</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      {/* SELECT PRINTER BLUETOOTH MODAL */}
+      <Modal visible={showPrinterSelector} transparent animationType="fade" onRequestClose={() => setShowPrinterSelector(false)}>
+        <View style={styles.selectorOverlay}>
+          <View style={styles.selectorCard}>
+            <View style={styles.selectorHeader}>
+              <Text style={styles.selectorTitle}>Pilih Printer Thermal Bluetooth</Text>
+              <TouchableOpacity onPress={() => setShowPrinterSelector(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.selectorSub}>
+              Pilih printer thermal yang sudah tersambung (paired) ke HP Anda:
+            </Text>
+
+            <ScrollView style={styles.printerList}>
+              {pairedPrinters.map((item) => (
+                <TouchableOpacity
+                  key={item.address}
+                  style={styles.printerItem}
+                  onPress={() => handleSelectPrinter(item)}
+                >
+                  <Ionicons name="print" size={22} color="#1E3A8A" />
+                  <View style={styles.printerItemInfo}>
+                    <Text style={styles.printerItemName}>{item.name}</Text>
+                    <Text style={styles.printerItemAddress}>{item.address}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.cancelSelectorBtn}
+              onPress={() => setShowPrinterSelector(false)}
+            >
+              <Text style={styles.cancelSelectorText}>Batal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -382,7 +502,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   printBtn: {
+    backgroundColor: '#3B82F6',
+  },
+  btPrintBtn: {
     backgroundColor: '#1E3A8A',
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   waBtn: {
     backgroundColor: '#16A34A',
@@ -393,6 +519,74 @@ const styles = StyleSheet.create({
   actionBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 11,
+  },
+  selectorOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  selectorCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+  },
+  selectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  selectorTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  selectorSub: {
     fontSize: 12,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  printerList: {
+    maxHeight: 220,
+  },
+  printerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  printerItemInfo: {
+    flex: 1,
+  },
+  printerItemName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  printerItemAddress: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  cancelSelectorBtn: {
+    marginTop: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+  },
+  cancelSelectorText: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

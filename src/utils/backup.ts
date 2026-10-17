@@ -1,5 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import { zip, unzip } from 'react-native-zip-archive';
 import { getDb, withTransaction } from '../db/database';
 
 export interface BackupPayload {
@@ -18,7 +20,12 @@ export interface BackupPayload {
   debtPayments: any[];
 }
 
-export async function createBackup(): Promise<string> {
+/**
+ * Buat cadangan data terkompresi (.zip) yang mencakup:
+ * 1. data.json (Database SQLite Kasirhan)
+ * 2. Seluruh file gambar foto produk & foto QRIS toko
+ */
+export async function createCompressedBackup(): Promise<string> {
   const db = await getDb();
 
   const businessProfile = await db.getFirstAsync('SELECT * FROM business_profile WHERE id = 1');
@@ -48,23 +55,144 @@ export async function createBackup(): Promise<string> {
     debtPayments,
   };
 
-  const json = JSON.stringify(payload, null, 2);
-  const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const fileName = `kasirhan-backup-${dateStr}.json`;
-  const filePath = `${FileSystem.documentDirectory}${fileName}`;
+  const timestamp = Date.now();
+  const tempDir = `${FileSystem.cacheDirectory}backup_staging_${timestamp}/`;
+  const imagesDir = `${tempDir}images/`;
 
-  await FileSystem.writeAsStringAsync(filePath, json, {
+  await FileSystem.makeDirectoryAsync(imagesDir, { intermediates: true });
+
+  // Tulis data.json ke staging
+  const jsonString = JSON.stringify(payload, null, 2);
+  await FileSystem.writeAsStringAsync(`${tempDir}data.json`, jsonString, {
     encoding: FileSystem.EncodingType.UTF8,
   });
 
+  // Salin file gambar produk ke folder images
+  for (const prod of products as any[]) {
+    if (prod.image_uri && prod.image_uri.startsWith('file://')) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(prod.image_uri);
+        if (fileInfo.exists) {
+          const fileName = prod.image_uri.split('/').pop()?.split('?')[0];
+          if (fileName) {
+            await FileSystem.copyAsync({
+              from: prod.image_uri,
+              to: `${imagesDir}${fileName}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal menyertakan gambar produk ke backup:', err);
+      }
+    }
+  }
+
+  // Salin file gambar QRIS toko jika ada
+  if (businessProfile && (businessProfile as any).qris_image_uri?.startsWith('file://')) {
+    try {
+      const qrisUri = (businessProfile as any).qris_image_uri;
+      const fileInfo = await FileSystem.getInfoAsync(qrisUri);
+      if (fileInfo.exists) {
+        const fileName = qrisUri.split('/').pop()?.split('?')[0];
+        if (fileName) {
+          await FileSystem.copyAsync({
+            from: qrisUri,
+            to: `${imagesDir}${fileName}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal menyertakan gambar QRIS ke backup:', err);
+    }
+  }
+
+  // Kompres folder staging ke file .zip
+  const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const zipFileName = `kasirhan-backup-${dateStr}.zip`;
+  const zipTargetPath = `${FileSystem.documentDirectory}${zipFileName}`;
+
+  const cleanTempPath = tempDir.replace(/^file:\/\//, '');
+  const cleanZipTargetPath = zipTargetPath.replace(/^file:\/\//, '');
+
+  await zip(cleanTempPath, cleanZipTargetPath);
+
+  // Bersihkan folder staging
+  await FileSystem.deleteAsync(tempDir, { idempotent: true });
+
+  // Buka dialog share/simpan file
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(filePath, {
-      mimeType: 'application/json',
-      dialogTitle: 'Simpan / Bagikan Backup Kasirhan',
+    await Sharing.shareAsync(zipTargetPath, {
+      mimeType: 'application/zip',
+      dialogTitle: 'Simpan Cadangan Terkompresi Kasirhan',
     });
   }
 
-  return filePath;
+  return zipTargetPath;
+}
+
+/**
+ * Pulihkan data langsung dari file ZIP cadangan yang dipilih user
+ */
+export async function restoreFromZipFile(): Promise<boolean> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/zip', 'application/x-zip-compressed', '*/*'],
+    copyToCacheDirectory: true,
+  });
+
+  if (result.canceled || !result.assets || result.assets.length === 0) {
+    return false;
+  }
+
+  const selectedFile = result.assets[0];
+  const zipSourceUri = selectedFile.uri;
+
+  const timestamp = Date.now();
+  const extractDir = `${FileSystem.cacheDirectory}restore_extract_${timestamp}/`;
+  await FileSystem.makeDirectoryAsync(extractDir, { intermediates: true });
+
+  const cleanSourcePath = zipSourceUri.replace(/^file:\/\//, '');
+  const cleanExtractPath = extractDir.replace(/^file:\/\//, '');
+
+  // Ekstrak file zip
+  await unzip(cleanSourcePath, cleanExtractPath);
+
+  // Baca data.json
+  const dataJsonPath = `${extractDir}data.json`;
+  const dataInfo = await FileSystem.getInfoAsync(dataJsonPath);
+  if (!dataInfo.exists) {
+    await FileSystem.deleteAsync(extractDir, { idempotent: true });
+    throw new Error('File ZIP ini tidak memuat file data.json cadangan Kasirhan.');
+  }
+
+  const jsonContent = await FileSystem.readAsStringAsync(dataJsonPath);
+
+  // Pindahkan gambar dari extractDir/images ke FileSystem.documentDirectory
+  const imagesDirPath = `${extractDir}images/`;
+  const imagesDirInfo = await FileSystem.getInfoAsync(imagesDirPath);
+  if (imagesDirInfo.exists) {
+    const imageFiles = await FileSystem.readDirectoryAsync(imagesDirPath);
+    for (const imgName of imageFiles) {
+      const sourceImg = `${imagesDirPath}${imgName}`;
+      const destImg = `${FileSystem.documentDirectory}${imgName}`;
+      try {
+        await FileSystem.copyAsync({ from: sourceImg, to: destImg });
+      } catch {}
+    }
+  }
+
+  // Restore database
+  await restoreBackupFromJson(jsonContent);
+
+  // Bersihkan folder extract
+  await FileSystem.deleteAsync(extractDir, { idempotent: true });
+  return true;
+}
+
+/**
+ * Backup plain JSON lama (tetap dipertahankan untuk kompatibilitas)
+ */
+export async function createBackup(): Promise<string> {
+  return createCompressedBackup();
 }
 
 export async function restoreBackupFromJson(jsonString: string): Promise<boolean> {
@@ -98,7 +226,7 @@ export async function restoreBackupFromJson(jsonString: string): Promise<boolean
       for (const c of data.categories) {
         await db.runAsync(
           'INSERT OR REPLACE INTO categories (id, name, color, icon, created_at) VALUES (?, ?, ?, ?, ?)',
-          [c.id, c.name, c.color || '#3B82F6', c.icon || 'tag', c.created_at || new Date().toISOString()]
+          [c.id, c.name, c.color, c.icon, c.created_at]
         );
       }
     }
@@ -108,12 +236,12 @@ export async function restoreBackupFromJson(jsonString: string): Promise<boolean
       for (const p of data.products) {
         await db.runAsync(
           `INSERT OR REPLACE INTO products (
-            id, name, category_id, unit, is_weighted, track_stock, low_stock_threshold, image_uri, is_active, created_at, updated_at
+            id, name, category_id, unit, is_weighted, track_stock,
+            low_stock_threshold, image_uri, is_active, created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            p.id, p.name, p.category_id, p.unit || 'pcs', p.is_weighted ? 1 : 0,
-            p.track_stock ? 1 : 0, p.low_stock_threshold || 5, p.image_uri,
-            p.is_active !== undefined ? p.is_active : 1, p.created_at, p.updated_at
+            p.id, p.name, p.category_id, p.unit, p.is_weighted, p.track_stock,
+            p.low_stock_threshold, p.image_uri, p.is_active, p.created_at, p.updated_at
           ]
         );
       }
@@ -124,19 +252,22 @@ export async function restoreBackupFromJson(jsonString: string): Promise<boolean
       for (const v of data.productVariants) {
         await db.runAsync(
           `INSERT OR REPLACE INTO product_variants (
-            id, product_id, name, sku, barcode, cost_price, sell_price, stock, is_default
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [v.id, v.product_id, v.name, v.sku, v.barcode, v.cost_price, v.sell_price, v.stock, v.is_default]
+            id, product_id, name, sku, barcode, cost_price, sell_price, stock, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            v.id, v.product_id, v.name, v.sku, v.barcode,
+            v.cost_price, v.sell_price, v.stock, v.created_at, v.updated_at
+          ]
         );
       }
     }
 
     // Restore customers
     if (data.customers && data.customers.length > 0) {
-      for (const c of data.customers) {
+      for (const cu of data.customers) {
         await db.runAsync(
-          'INSERT OR REPLACE INTO customers (id, name, phone, address, created_at) VALUES (?, ?, ?, ?, ?)',
-          [c.id, c.name, c.phone, c.address, c.created_at]
+          'INSERT OR REPLACE INTO customers (id, name, phone, email, address, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [cu.id, cu.name, cu.phone, cu.email, cu.address, cu.created_at]
         );
       }
     }
