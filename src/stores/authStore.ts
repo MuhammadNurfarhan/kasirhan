@@ -1,6 +1,11 @@
-import { create } from 'zustand';
-import { isLicensed, activate, getDeviceId } from '../license';
-import { isSetupCompleted, verifyUserPin, setupSecurity, resetPinWithRecoveryCode } from '../repositories/profileRepository';
+import { create } from "zustand";
+import { isLicensed, activate, getDeviceId } from "../license";
+import {
+  isSetupCompleted,
+  verifyUserPin,
+  setupSecurity,
+  resetPinWithRecoveryCode,
+} from "../repositories/profileRepository";
 
 interface AuthState {
   isLicensed: boolean;
@@ -22,7 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLicensed: false,
   isSetup: false,
   isLocked: true,
-  deviceId: '',
+  deviceId: "",
   isLoading: true,
 
   initializeAuth: async () => {
