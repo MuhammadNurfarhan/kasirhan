@@ -166,7 +166,10 @@ export const SettingsScreen: React.FC = () => {
     setIsBackingUp(true);
     try {
       await createBackup();
-      Alert.alert('Sukses', 'File cadangan (.zip) berhasil dibuat dan siap disimpan/dibagikan.');
+      Alert.alert(
+        'Sukses',
+        'File cadangan (.zip) berhasil disimpan ke folder yang Anda pilih di penyimpanan internal.'
+      );
     } catch (e: any) {
       Alert.alert('Gagal Backup', e?.message);
     } finally {

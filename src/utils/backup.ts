@@ -125,28 +125,62 @@ export async function createCompressedBackup(): Promise<string> {
     }
   }
 
-  // Kompres folder staging ke file .zip
+  // Kompres folder staging ke file .zip (disimpan sementara di app storage)
   const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const zipFileName = `kasirhan-backup-${dateStr}.zip`;
-  const zipTargetPath = `${FileSystem.documentDirectory}${zipFileName}`;
+  const zipTempPath = `${FileSystem.documentDirectory}${zipFileName}`;
 
   const cleanTempPath = tempDir.replace(/^file:\/\//, '');
-  const cleanZipTargetPath = zipTargetPath.replace(/^file:\/\//, '');
+  const cleanZipTempPath = zipTempPath.replace(/^file:\/\//, '');
 
-  await zip(cleanTempPath, cleanZipTargetPath);
+  await zip(cleanTempPath, cleanZipTempPath);
 
   // Bersihkan folder staging
   await FileSystem.deleteAsync(tempDir, { idempotent: true });
 
-  // Buka dialog share/simpan file
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(zipTargetPath, {
-      mimeType: 'application/zip',
-      dialogTitle: 'Simpan Cadangan Terkompresi Kasirhan',
-    });
+  // Simpan langsung ke penyimpanan internal menggunakan StorageAccessFramework
+  // User memilih folder tujuan (defaultnya Downloads)
+  let savedToInternal = false;
+  try {
+    const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (permissions.granted) {
+      // Baca konten ZIP sebagai base64
+      const zipBase64 = await FileSystem.readAsStringAsync(zipTempPath, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Buat file baru di folder yang dipilih user
+      const safUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        zipFileName,
+        'application/zip'
+      );
+
+      // Tulis konten ke file
+      await FileSystem.writeAsStringAsync(safUri, zipBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      savedToInternal = true;
+    }
+  } catch (_safErr) {
+    // SAF gagal → fallback ke share sheet
   }
 
-  return zipTargetPath;
+  if (!savedToInternal) {
+    // Fallback: buka dialog share jika SAF dibatalkan atau gagal
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(zipTempPath, {
+        mimeType: 'application/zip',
+        dialogTitle: 'Simpan Cadangan Terkompresi Kasirhan',
+      });
+    }
+  }
+
+  // Hapus file ZIP sementara di app storage
+  await FileSystem.deleteAsync(zipTempPath, { idempotent: true });
+
+  return zipTempPath;
 }
 
 /**
