@@ -28,6 +28,14 @@ yarn-error.*
 
 # macOS
 .DS_Store
+
+
+# Keystore dan Password
+kasirhan-release.keystore
+android/keystore.properties
+*.jks
+*.keystore
+*.apk
 *.pem
 lisensi-log.csv
 PUBLIC_KEY.txt

@@ -6,12 +6,10 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
-    "ios": {
-      "supportsTablet": true
-    },
+    "backgroundColor": "#F8FAFC",
     "android": {
       "package": "com.kasirhan.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#1E3A8A",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,9 +26,6 @@
         "BLUETOOTH_SCAN",
         "ACCESS_FINE_LOCATION"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sqlite",
@@ -54,11 +49,14 @@
         {
           "android": {
             "minSdkVersion": 26,
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35
+            "buildArchs": [
+              "armeabi-v7a",
+              "arm64-v8a"
+            ]
           }
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
