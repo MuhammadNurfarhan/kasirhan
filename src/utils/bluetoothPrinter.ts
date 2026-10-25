@@ -4,6 +4,8 @@ import RNBluetoothClassic, {
 import { PermissionsAndroid, Platform } from "react-native"; // [PATCH]
 import { Transaction, BusinessProfile } from "../types";
 import { formatRupiah, formatDateTime, formatQuantity } from "./format";
+import { getLogoEscPosBuffer } from "./escPosImage";
+import { Buffer } from "buffer";
 
 export interface BluetoothPrinterDevice {
   name: string;
@@ -303,8 +305,24 @@ export async function printReceiptBluetooth(
       throw new Error("Gagal menghubungkan ke printer Bluetooth.");
     }
 
-    const payload = buildEscPosReceipt(tx, profile);
-    await device.write(payload, "utf8");
+    // Siapkan data teks struk ESC/POS
+    const textReceipt = buildEscPosReceipt(tx, profile);
+    const textBuffer = Buffer.from(textReceipt, "utf8");
+
+    // Ambil logo toko dalam format raster bitmap ESC/POS jika ada
+    let finalPayload = textBuffer;
+    try {
+      const logoBuffer = await getLogoEscPosBuffer(profile.logo_image_uri, profile.paper_size);
+      if (logoBuffer && logoBuffer.length > 0) {
+        const INIT_CMD = Buffer.from([0x1b, 0x40]);
+        finalPayload = Buffer.concat([INIT_CMD, logoBuffer, textBuffer]);
+      }
+    } catch (logoErr) {
+      console.warn("Lewati cetak logo thermal karena kendala decoding:", logoErr);
+    }
+
+    // Kirim seluruh payload via base64 encoding (standar transfer biner react-native-bluetooth-classic)
+    await device.write(finalPayload.toString("base64"), "base64");
 
     return true;
   } catch (e: any) {

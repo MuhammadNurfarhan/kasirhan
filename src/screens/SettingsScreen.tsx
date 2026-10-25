@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import { useAuthStore } from '../stores/authStore';
 import { createBackup, restoreBackupFromJson, restoreFromZipFile } from '../utils/backup';
 
 export const SettingsScreen: React.FC = () => {
-  const { profile, updateProfile, setScreen } = useAppStore();
+  const { profile, updateProfile, loadProfile, setScreen } = useAppStore();
   const { deviceId } = useAuthStore();
 
   // Profile Form State
@@ -35,6 +35,21 @@ export const SettingsScreen: React.FC = () => {
   const [logoImageUri, setLogoImageUri] = useState<string | null>(profile.logo_image_uri || null);
   const [tableEnabled, setTableEnabled] = useState(profile.table_enabled);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(profile.auto_print_enabled);
+
+  // Sync state saat profile di store berubah
+  useEffect(() => {
+    setName(profile.name);
+    setAddress(profile.address);
+    setPhone(profile.phone);
+    setFooterNote(profile.footer_note);
+    setPaperSize(profile.paper_size);
+    setTaxEnabled(profile.tax_enabled);
+    setTaxPercentage(profile.tax_percentage.toString());
+    setQrisImageUri(profile.qris_image_uri || null);
+    setLogoImageUri(profile.logo_image_uri || null);
+    setTableEnabled(profile.table_enabled);
+    setAutoPrintEnabled(profile.auto_print_enabled);
+  }, [profile]);
 
   // Backup / Restore State
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -191,6 +206,7 @@ export const SettingsScreen: React.FC = () => {
               const success = await restoreFromZipFile();
               setIsRestoring(false);
               if (success) {
+                await loadProfile();
                 Alert.alert('Sukses', 'Data dan foto produk berhasil dipulihkan secara penuh!');
               }
             } catch (e: any) {
