@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Buffer } from 'buffer';
-import { PNG } from 'pngjs';
+import * as UPNG from 'upng-js';
 import * as jpeg from 'jpeg-js';
 
 export interface DecodedImage {
@@ -30,11 +30,12 @@ export async function decodeImageToRgba(uri: string): Promise<DecodedImage | nul
       fileBuffer[2] === 0x4e &&
       fileBuffer[3] === 0x47
     ) {
-      const png = PNG.sync.read(fileBuffer);
+      const img = UPNG.decode(fileBuffer);
+      const rgba8 = UPNG.toRGBA8(img)[0];
       return {
-        width: png.width,
-        height: png.height,
-        data: png.data,
+        width: img.width,
+        height: img.height,
+        data: new Uint8Array(rgba8),
       };
     }
 
@@ -53,13 +54,22 @@ export async function decodeImageToRgba(uri: string): Promise<DecodedImage | nul
       };
     }
 
-    // Fallback: try PNG first, then JPEG
+    // Fallback: coba PNG dulu, lalu JPEG
     try {
-      const png = PNG.sync.read(fileBuffer);
-      return { width: png.width, height: png.height, data: png.data };
+      const img = UPNG.decode(fileBuffer);
+      const rgba8 = UPNG.toRGBA8(img)[0];
+      return {
+        width: img.width,
+        height: img.height,
+        data: new Uint8Array(rgba8),
+      };
     } catch {
       const decodedJpeg = jpeg.decode(fileBuffer, { useTArray: true });
-      return { width: decodedJpeg.width, height: decodedJpeg.height, data: decodedJpeg.data };
+      return {
+        width: decodedJpeg.width,
+        height: decodedJpeg.height,
+        data: decodedJpeg.data,
+      };
     }
   } catch (err) {
     console.warn('Gagal membaca/mendekode gambar logo untuk printer thermal:', err);
@@ -187,4 +197,3 @@ export async function getLogoEscPosBuffer(
   const maxDots = paperSize === '80mm' ? 280 : 200;
   return convertRgbaToEscPosRaster(decoded.data, decoded.width, decoded.height, maxDots);
 }
-

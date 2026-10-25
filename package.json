@@ -37,6 +37,7 @@
     "react-native-zip-archive": "^9.5.3",
     "tweetnacl": "^1.0.3",
     "ulid": "^3.0.2",
+    "upng-js": "^2.1.0",
     "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },
