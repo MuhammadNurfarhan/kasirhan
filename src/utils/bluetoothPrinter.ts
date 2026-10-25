@@ -140,7 +140,9 @@ export function buildEscPosReceipt(
   const BOLD_OFF = `${ESC}E\x00`;
   const DOUBLE_HEIGHT = `${GS}!\x01`;
   const NORMAL_SIZE = `${GS}!\x00`;
-  const FEED_AND_CUT = `\n\n\n\n${GS}V\x41\x00`;
+  // Untuk printer 58mm (portable), tidak ada auto-cutter sehingga cukup feed newline.
+  // Untuk printer 80mm (desktop cutter), gunakan GS V \x00 (0x00 = NUL, bukan \x41 = 'A' yang bocor jadi teks).
+  const CUT_PAPER = profile.paper_size === "80mm" ? `${GS}V\x00` : "";
 
   const paperWidthChars = profile.paper_size === "80mm" ? 48 : 32;
 
@@ -253,7 +255,7 @@ export function buildEscPosReceipt(
   buffer += "Kasirhan POS Offline\n";
 
   // Feed & Cut Paper
-  buffer += FEED_AND_CUT;
+  buffer += "\n\n\n\n" + CUT_PAPER;
 
   return buffer;
 }
