@@ -160,7 +160,8 @@ export function buildEscPosReceipt(
   // Header Toko (Center)
   buffer += ALIGN_CENTER;
   buffer += BOLD_ON + DOUBLE_HEIGHT;
-  buffer += `${profile.name}\n` + NORMAL_SIZE + BOLD_OFF;
+  buffer += profile.name + '\n';
+  buffer += NORMAL_SIZE + BOLD_OFF;
 
   if (profile.address) {
     buffer += `${profile.address}\n`;
